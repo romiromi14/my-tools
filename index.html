@@ -128,43 +128,6 @@
         transform: none;
         background: rgba(255, 255, 255, 0.12);
       }
-      details {
-        max-width: 1100px;
-        margin: 40px auto 0;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 10px;
-        padding: 14px 20px;
-      }
-      summary {
-        cursor: pointer;
-        font-size: 0.95em;
-        user-select: none;
-      }
-      .history {
-        margin-top: 14px;
-      }
-      .history-item {
-        padding: 8px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        font-size: 0.88em;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .history-item:last-child {
-        border-bottom: none;
-      }
-      .history-item a {
-        color: #9ecbff;
-        text-decoration: none;
-      }
-      .history-item a:hover {
-        text-decoration: underline;
-      }
-      .history-name {
-        font-family: monospace;
-        opacity: 0.85;
-      }
       footer {
         text-align: center;
         margin-top: 40px;
@@ -187,16 +150,12 @@
 
     <div class="grid" id="grid"></div>
 
-    <details>
-      <summary>📦 過去バージョンを表示</summary>
-      <div class="history" id="history"></div>
-    </details>
-
     <footer>新ツール追加はHTML内 <code>TOOLS</code> 配列を編集</footer>
 
     <script>
       // ========================================
-      // ツール一覧（基本定義）
+      // ツール一覧
+      // basename: 実ファイル名（.html を除いた部分）
       // ========================================
       const TOOLS = [
         {
@@ -204,28 +163,24 @@
           title: "Gensparkギャラリー",
           desc: "Gensparkで生成した画像をギャラリー表示",
           icon: "🖼",
-          noVersion: true, // ← 追加
         },
         {
           basename: "prompt_builder",
           title: "プロンプトビルダー",
           desc: "画像生成用プロンプトを組み立てるツール",
           icon: "✍",
-          noVersion: true, // ← 追加
         },
         {
           basename: "pic_combine",
           title: "画像結合ツール",
           desc: "複数の画像を1枚に結合",
           icon: "🧩",
-          noVersion: true, // ← 追加
         },
         {
-          basename: "prompt_translator", // ← 日本語名から英語名に変更推奨
+          basename: "prompt_translator",
           title: "プロンプト和訳ツール",
           desc: "英語プロンプトを日本語に翻訳",
           icon: "🌐",
-          noVersion: true,
         },
       ];
 
@@ -239,14 +194,13 @@
           const order = JSON.parse(saved);
           const map = new Map(TOOLS.map((t) => [t.basename, t]));
           const ordered = [];
-          // 保存された順序で並べる
           for (const basename of order) {
             if (map.has(basename)) {
               ordered.push(map.get(basename));
               map.delete(basename);
             }
           }
-          // 保存されていない新規ツールは末尾に追加
+          // 新規追加されたツールは末尾に
           for (const t of map.values()) ordered.push(t);
           return ordered;
         } catch {
@@ -279,21 +233,6 @@
         }
       }
 
-      async function findVersions(basename) {
-        const found = [];
-        const checks = [];
-        for (let v = 1; v <= 99; v++) {
-          const url = `${basename}_v${v}.html`;
-          checks.push(
-            fileExists(url).then((ok) => {
-              if (ok) found.push(v);
-            }),
-          );
-        }
-        await Promise.all(checks);
-        return found.sort((a, b) => b - a);
-      }
-
       // ========================================
       // ドラッグ＆ドロップ機能
       // ========================================
@@ -301,7 +240,7 @@
 
       function enableDragAndDrop(card) {
         card.draggable = true;
-        let enterCounter = 0; // ドラッグ侵入カウンタ
+        let enterCounter = 0;
 
         card.addEventListener("dragstart", (e) => {
           draggedCard = card;
@@ -363,61 +302,34 @@
 
       async function render() {
         const grid = document.getElementById("grid");
-        const history = document.getElementById("history");
         grid.innerHTML = "";
-        history.innerHTML = "";
 
         const tools = getOrderedTools();
 
-        for (const tool of tools) {
-          let url = null;
-          let versionLabel = "";
-          let exists = false;
+        // 全ツールの存在確認を並列実行
+        const existsResults = await Promise.all(
+          tools.map((tool) => fileExists(`${tool.basename}.html`)),
+        );
 
-          if (tool.noVersion) {
-            url = `${tool.basename}.html`;
-            exists = await fileExists(url);
-            versionLabel = exists ? "ファイルあり" : "見つかりません";
-          } else {
-            const versions = await findVersions(tool.basename);
-            if (versions.length > 0) {
-              exists = true;
-              url = `${tool.basename}_v${versions[0]}.html`;
-              versionLabel = `v${versions[0]}（最新）`;
-              // 過去バージョン
-              for (const v of versions.slice(1)) {
-                const item = document.createElement("div");
-                item.className = "history-item";
-                item.innerHTML = `
-              <span><strong>${tool.title}</strong> <span class="history-name">${tool.basename}_v${v}.html</span></span>
-              <a href="${tool.basename}_v${v}.html">開く →</a>
-            `;
-                history.appendChild(item);
-              }
-            } else {
-              versionLabel = "見つかりません";
-            }
-          }
+        tools.forEach((tool, i) => {
+          const exists = existsResults[i];
+          const url = `${tool.basename}.html`;
+          const versionLabel = exists ? "OPEN" : "見つかりません";
 
           const card = document.createElement(exists ? "a" : "div");
           card.className = "card" + (exists ? "" : " missing");
           card.dataset.basename = tool.basename;
           if (exists) card.href = url;
           card.innerHTML = `
-        <span class="drag-handle" title="ドラッグで並び替え">⋮⋮</span>
-        <div class="card-icon">${tool.icon}</div>
-        <div class="card-title">${tool.title}</div>
-        <div class="card-desc">${tool.desc}</div>
-        <span class="card-version">${versionLabel}</span>
-      `;
+            <span class="drag-handle" title="ドラッグで並び替え">⋮⋮</span>
+            <div class="card-icon">${tool.icon}</div>
+            <div class="card-title">${tool.title}</div>
+            <div class="card-desc">${tool.desc}</div>
+            <span class="card-version">${versionLabel}</span>
+          `;
           enableDragAndDrop(card);
           grid.appendChild(card);
-        }
-
-        if (!history.hasChildNodes()) {
-          history.innerHTML =
-            '<div style="opacity:0.6;font-size:0.85em;">過去バージョンはありません</div>';
-        }
+        });
       }
 
       render();
