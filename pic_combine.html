@@ -1,0 +1,2013 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>画像連結ツール</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0f1117;
+        --surface: rgba(255, 255, 255, 0.05);
+        --surface2: rgba(255, 255, 255, 0.09);
+        --border: rgba(255, 255, 255, 0.12);
+        --accent: #6c63ff;
+        --accent2: #a78bfa;
+        --text: #e8e8f0;
+        --text-muted: #888;
+        --danger: #ef4444;
+        --success: #22c55e;
+        --radius: 12px;
+        --radius-sm: 8px;
+      }
+
+      html,
+      body {
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-size: 14px;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* ── ヘッダー ── */
+      header {
+        background: linear-gradient(135deg, #1a1040 0%, #0f1117 100%);
+        border-bottom: 1px solid var(--border);
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      header .logo {
+        font-size: 22px;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      header h1 {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      header p {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
+
+      /* ── レイアウト ── */
+      .app {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* ── サイドパネル ── */
+      .sidebar {
+        width: 360px; /* 300px → 360px */
+        min-width: 320px; /* 260px → 320px */
+        background: rgba(255, 255, 255, 0.03);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        flex-shrink: 0;
+      }
+
+      .panel {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* ── ドロップゾーン ── */
+      .dropzone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--surface);
+      }
+
+      .dropzone.drag-over {
+        border-color: var(--accent);
+        background: rgba(108, 99, 255, 0.1);
+      }
+      .dropzone i {
+        font-size: 28px;
+        color: var(--accent);
+        margin-bottom: 8px;
+        display: block;
+      }
+      .dropzone p {
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+      .dropzone span {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      #file-input {
+        display: none;
+      }
+
+      /* ── サムネイル一覧 ── */
+      .thumb-list {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap; /* nowrap → wrap */
+        gap: 8px;
+        padding: 12px 8px; /* 折り返し時の上下余白も少し増やす */
+        overflow: visible; /* スクロール不要に */
+        min-height: 80px;
+        justify-content: flex-start;
+      }
+      .thumb-list::-webkit-scrollbar {
+        height: 4px;
+      }
+      .thumb-list::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 2px;
+      }
+
+      .thumb-item {
+        position: relative;
+        flex-shrink: 0;
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-sm);
+        overflow: visible; /* 挿入ラインが見えるように visible に */
+        border: 2px solid var(--border);
+        cursor: grab;
+        transition:
+          border-color 0.2s,
+          transform 0.15s;
+        background: #000;
+        touch-action: none;
+      }
+      /* 画像自体は内側で切る */
+      .thumb-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        border-radius: calc(var(--radius-sm) - 2px);
+        display: block;
+        overflow: hidden;
+      }
+      .thumb-item:active {
+        cursor: grabbing;
+      }
+      .thumb-item.drag-source {
+        opacity: 0.35;
+        transform: scale(0.92);
+      }
+      /* 挿入位置インジケーター（DOM要素を直接漠渡するので、::before/::after は不要） */
+      .thumb-insert-line {
+        position: absolute;
+        top: -2px;
+        bottom: -2px;
+        width: 3px;
+        background: var(--accent);
+        border-radius: 2px;
+        box-shadow:
+          0 0 8px var(--accent),
+          0 0 2px #fff;
+        pointer-events: none;
+        z-index: 20;
+        flex-shrink: 0;
+      }
+      .thumb-insert-line.before {
+        right: calc(100% + 3px);
+      }
+      .thumb-insert-line.after {
+        left: calc(100% + 3px);
+      }
+      /* 入れ替え完了フラッシュ（青） */
+      @keyframes swap-flash {
+        0% {
+          box-shadow: 0 0 0 3px #60a5fa;
+          border-color: #60a5fa;
+        }
+        60% {
+          box-shadow: 0 0 0 3px #60a5fa66;
+          border-color: #60a5fa66;
+        }
+        100% {
+          box-shadow: none;
+          border-color: var(--border);
+        }
+      }
+      .thumb-item.swapped {
+        animation: swap-flash 0.5s ease-out forwards;
+      }
+      .thumb-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+      }
+      .thumb-num {
+        position: absolute;
+        bottom: 2px;
+        left: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 0 4px #000;
+      }
+      .thumb-del {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 18px;
+        height: 18px;
+        background: var(--danger);
+        border: none;
+        border-radius: 50%;
+        color: #fff;
+        font-size: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.15s;
+        line-height: 1;
+      }
+
+      /* タッチデバイスでは常時表示 */
+      @media (hover: none) {
+        .thumb-del {
+          opacity: 1;
+        }
+      }
+
+      /* ── ボタングループ ── */
+      .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        min-height: 36px;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn-danger {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+
+      .btn-success {
+        background: var(--success);
+        border-color: var(--success);
+        color: #fff;
+      }
+
+      .btn-full {
+        width: 100%;
+      }
+
+      /* ── スライダー ── */
+      .slider-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .slider-row-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .slider-row-top label {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .slider-row-bottom {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .slider-row-bottom input[type="range"] {
+        flex: 1;
+        accent-color: var(--accent);
+        height: 4px;
+        cursor: pointer;
+        min-width: 0;
+      }
+      .slider-val {
+        font-size: 12px;
+        font-weight: 600;
+        min-width: 32px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+
+      /* ── 選択ボックス ── */
+      .form-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .form-row label {
+        font-size: 12px;
+        color: var(--text-muted);
+        min-width: 50px;
+      }
+      .form-row select,
+      .form-row input[type="number"] {
+        flex: 1;
+        background: #2a2a3e;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        padding: 6px 10px;
+        font-size: 12px;
+        min-height: 36px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .form-row select:focus,
+      .form-row input[type="number"]:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      /* ドロップダウン内の選択肢テキスト色を明示指定 */
+      .form-row select option {
+        background: #2a2a3e;
+        color: var(--text);
+      }
+      input[type="color"] {
+        width: 36px;
+        height: 36px;
+        border: none;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        background: transparent;
+        padding: 0;
+      }
+
+      /* ── 行レイアウトパネル ── */
+      #row-layout-panel {
+        display: none;
+        margin-top: 12px;
+      }
+      #row-layout-panel.visible {
+        display: block;
+      }
+
+      .row-layout-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .row-layout-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 10px 10px 8px;
+      }
+      .row-layout-item-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .row-layout-item .row-num {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .row-layout-item .btn-del-row {
+        background: none;
+        border: none;
+        color: var(--danger);
+        border-radius: 6px;
+        padding: 2px 6px;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.15s;
+      }
+
+      /* 枚数選択ボタン群 */
+      .cols-picker {
+        display: flex;
+        gap: 5px;
+      }
+      .cols-picker-btn {
+        flex: 1;
+        min-width: 0;
+        height: 40px;
+        border-radius: 8px;
+        border: 2px solid var(--border);
+        background: var(--bg);
+        color: var(--text-muted);
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .cols-picker-btn.selected {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      /* ── レイアウトモードトグル ── */
+      .mode-toggle {
+        display: flex;
+        gap: 0;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1.5px solid var(--border);
+        margin-bottom: 12px;
+      }
+      .mode-toggle-btn {
+        flex: 1;
+        height: 38px;
+        border: none;
+        background: var(--bg);
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        border-right: 1.5px solid var(--border);
+      }
+      .mode-toggle-btn:last-child {
+        border-right: none;
+      }
+
+      .mode-toggle-btn.active {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      /* ── 揃えボタン群 ── */
+      .align-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .align-row > label {
+        font-size: 12px;
+        color: var(--text-muted);
+        min-width: 56px;
+      }
+      .align-btns {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+      }
+      .align-btn {
+        flex: 1;
+        height: 32px;
+        border-radius: 6px;
+        border: 1.5px solid var(--border);
+        background: var(--bg);
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .align-btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      /* 自然サイズモード時のみ表示するエリア */
+      .natural-only {
+        display: none;
+      }
+      body.mode-natural .natural-only {
+        display: block;
+      }
+      body.mode-natural .align-row {
+        display: flex;
+      }
+      body.mode-stretch .align-row,
+      body.mode-stretch .natural-only {
+        display: none;
+      }
+
+      .row-layout-summary {
+        font-size: 11px;
+        color: var(--accent2);
+        margin-bottom: 10px;
+        padding: 6px 10px;
+        background: rgba(108, 99, 255, 0.1);
+        border-radius: var(--radius-sm);
+        border: 1px solid rgba(108, 99, 255, 0.2);
+      }
+
+      /* ── レイアウト説明文 ── */
+      .layout-hint {
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: rgba(108, 99, 255, 0.08);
+        border: 1px solid rgba(108, 99, 255, 0.18);
+        border-radius: var(--radius-sm);
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.6;
+      }
+      .layout-hint strong {
+        color: var(--accent2);
+      }
+
+      /* ── メインエリア ── */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .preview-wrap {
+        flex: 1;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 20px;
+        background: repeating-conic-gradient(#1a1a2e 0% 25%, #151520 0% 50%) 0
+          0 / 20px 20px;
+        gap: 10px;
+      }
+
+      .preview-canvas-wrap {
+        position: relative;
+        display: none;
+        max-width: 100%;
+      }
+      .preview-canvas-wrap.visible {
+        display: block;
+      }
+
+      #preview-canvas {
+        max-width: 100%;
+        border-radius: var(--radius-sm);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+        display: block;
+        image-rendering: auto;
+      }
+
+      /* 画像サイズバッジ */
+      #size-badge {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        background: rgba(15, 17, 23, 0.75);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        backdrop-filter: blur(6px);
+        flex-shrink: 0;
+      }
+      #size-badge.visible {
+        display: flex;
+      }
+      #size-badge .size-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--accent2);
+        letter-spacing: 0.5px;
+      }
+      #size-badge .size-num {
+        color: var(--text);
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .preview-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: var(--text-muted);
+        gap: 12px;
+        text-align: center;
+      }
+      .preview-empty i {
+        font-size: 48px;
+        opacity: 0.3;
+      }
+
+      /* ── ダウンロードバー ── */
+      .dl-bar {
+        background: rgba(255, 255, 255, 0.03);
+        border-top: 1px solid var(--border);
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+      .dl-bar label {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .dl-bar select {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        padding: 6px 10px;
+        font-size: 12px;
+        min-height: 36px;
+      }
+      .dl-bar .spacer {
+        flex: 1;
+      }
+      #jpeg-quality-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      /* ── モーダル ── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.82);
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+
+      .modal-box {
+        background: #1a1a2e;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        width: 100%;
+        max-width: 90vw;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      }
+      .modal-header {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+      .modal-header h2 {
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .modal-guide {
+        padding: 10px 16px;
+        background: rgba(108, 99, 255, 0.12);
+        border-bottom: 1px solid rgba(108, 99, 255, 0.2);
+        font-size: 12px;
+        color: var(--accent2);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        line-height: 1.5;
+      }
+      .modal-body {
+        flex: 1;
+        overflow: auto;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal-body img {
+        max-width: 100%;
+        max-height: calc(90vh - 140px);
+        border-radius: var(--radius-sm);
+        object-fit: contain;
+        display: block;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .modal-footer {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        flex-shrink: 0;
+      }
+      .btn-close-modal {
+        padding: 8px 20px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        min-height: 40px;
+        transition: all 0.15s;
+      }
+
+      .btn-dl-from-modal {
+        padding: 8px 20px;
+        border-radius: var(--radius-sm);
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        min-height: 40px;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* ── モバイル用レイアウト切り替え ── */
+      @media (max-width: 700px) {
+        .app {
+          flex-direction: column;
+          overflow: visible;
+        }
+        .sidebar {
+          width: 100%;
+          min-width: unset;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          max-height: 60vh;
+          overflow-y: auto;
+        }
+        .main {
+          flex: unset;
+          height: calc(100vh - 200px);
+        }
+        .preview-wrap {
+          padding: 12px;
+        }
+        .dl-bar {
+          padding: 10px 12px;
+        }
+        .panel {
+          padding: 12px;
+        }
+      }
+
+      @media (hover: hover) {
+        .dropzone:hover {
+          border-color: var(--accent);
+          background: rgba(108, 99, 255, 0.1);
+        }
+        .btn:hover {
+          background: var(--surface2);
+          border-color: var(--accent);
+        }
+        .btn-danger:hover {
+          background: rgba(239, 68, 68, 0.15);
+        }
+        .btn-success:hover {
+          background: #16a34a;
+        }
+        .thumb-item:hover .thumb-del {
+          opacity: 1;
+        }
+        .thumb-del:hover {
+          background: #c00;
+        }
+        .cols-picker-btn:hover {
+          border-color: var(--accent);
+          color: var(--text);
+        }
+        .align-btn:hover {
+          border-color: var(--accent);
+          color: var(--text);
+        }
+        .mode-toggle-btn:hover {
+          background: var(--surface2);
+          color: var(--text);
+        }
+        .btn-close-modal:hover {
+          border-color: var(--accent);
+        }
+        .btn-dl-from-modal:hover {
+          background: #5753d0;
+        }
+        .row-layout-item .btn-del-row:hover {
+          opacity: 1;
+        }
+      }
+
+      /* ── ユーティリティ ── */
+      .gap-top {
+        margin-top: 10px;
+      }
+      .text-muted {
+        color: var(--text-muted);
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo"><i class="fa-solid fa-layer-group"></i></div>
+      <div>
+        <h1>画像連結ツール</h1>
+        <p>複数の画像を自由に組み合わせて1枚に結合</p>
+      </div>
+    </header>
+
+    <div class="app">
+      <!-- ── サイドバー ── -->
+      <aside class="sidebar">
+        <!-- アップロード -->
+        <div class="panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-upload"></i> 画像を追加
+          </div>
+          <div class="dropzone" id="dropzone">
+            <i class="fa-solid fa-images"></i>
+            <p><span>クリック</span> または<br />ドラッグ＆ドロップ</p>
+            <p style="margin-top: 4px; font-size: 11px">
+              PNG / JPEG / WebP / GIF
+            </p>
+          </div>
+          <input type="file" id="file-input" multiple accept="image/*" />
+          <div class="thumb-list" id="thumb-list"></div>
+          <button class="btn btn-danger btn-full gap-top" id="btn-clear">
+            <i class="fa-solid fa-trash"></i> すべて削除
+          </button>
+        </div>
+
+        <!-- レイアウト選択 -->
+        <div class="panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-table-cells"></i> レイアウト
+          </div>
+
+          <!-- モードトグル -->
+          <div class="mode-toggle">
+            <button
+              class="mode-toggle-btn"
+              id="mode-stretch-btn"
+              data-mode="stretch"
+            >
+              ⇔ 伸び縮み
+            </button>
+            <button
+              class="mode-toggle-btn"
+              id="mode-natural-btn"
+              data-mode="natural"
+            >
+              ⬜ 自然サイズ
+            </button>
+          </div>
+
+          <div class="layout-hint">
+            各行に何枚並べるかを自由に指定できます。<br />
+            <strong>伸び縮み</strong>：行の幅を最大に揃えて拡縮<br />
+            <strong>自然サイズ</strong>：元サイズのまま結合
+          </div>
+
+          <!-- 自然サイズモード時のみ表示：キャンバス幅 -->
+          <div class="form-row natural-only">
+            <label>幅基準</label>
+            <select id="canvas-width-mode">
+              <option value="max" selected>最大に合わせる（余白）</option>
+              <option value="min">最小に合わせる（切り取り）</option>
+            </select>
+          </div>
+
+          <!-- 行レイアウトパネル -->
+          <div id="row-layout-panel">
+            <div class="row-layout-summary" id="row-layout-summary">
+              画像0枚 → 行設定に合わせて配置
+            </div>
+            <div class="row-layout-list" id="row-layout-list"></div>
+            <button class="btn btn-full" id="btn-add-row" style="gap: 6px">
+              <i class="fa-solid fa-plus"></i> 行を追加
+            </button>
+          </div>
+        </div>
+
+        <!-- 詳細設定（揃え部分を差し替え） -->
+        <div class="panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-gear"></i> 詳細設定
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-row-top">
+              <label>画像間の余白</label>
+              <span class="slider-val" id="gap-val">0px</span>
+            </div>
+            <div class="slider-row-bottom">
+              <input type="range" id="gap" min="0" max="100" value="0" />
+              <button
+                class="btn"
+                id="btn-tight"
+                style="
+                  padding: 4px 10px;
+                  font-size: 11px;
+                  min-height: 28px;
+                  flex-shrink: 0;
+                "
+              >
+                ぴったり
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>背景色</label>
+            <input type="color" id="bg-color" value="#ffffff" />
+            <span class="text-muted" style="margin-left: 4px">余白の色</span>
+          </div>
+
+          <!-- 自然サイズモード時のみ表示 -->
+          <div class="align-row natural-only">
+            <label>横揃え</label>
+            <div class="align-btns">
+              <button class="align-btn" data-axis="h" data-val="start">
+                左
+              </button>
+              <button class="align-btn active" data-axis="h" data-val="center">
+                中央
+              </button>
+              <button class="align-btn" data-axis="h" data-val="end">右</button>
+            </div>
+          </div>
+          <div class="align-row natural-only">
+            <label>縦揃え</label>
+            <div class="align-btns">
+              <button class="align-btn active" data-axis="v" data-val="start">
+                上
+              </button>
+              <button class="align-btn" data-axis="v" data-val="center">
+                中央
+              </button>
+              <button class="align-btn" data-axis="v" data-val="end">下</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ── メインエリア ── -->
+      <div class="main">
+        <div class="preview-wrap" id="preview-wrap">
+          <div class="preview-empty" id="preview-empty">
+            <i class="fa-solid fa-image"></i>
+            <p>画像をアップロードするとプレビューが表示されます</p>
+          </div>
+          <div class="preview-canvas-wrap" id="preview-canvas-wrap">
+            <canvas id="preview-canvas"></canvas>
+          </div>
+          <div id="size-badge">
+            <span class="size-label">W</span>
+            <span class="size-num" id="size-w">0</span>
+            <span style="color: var(--text-muted); font-size: 11px">×</span>
+            <span class="size-label">H</span>
+            <span class="size-num" id="size-h">0</span>
+            <span
+              style="
+                color: var(--text-muted);
+                font-size: 11px;
+                margin-left: 2px;
+              "
+              >px</span
+            >
+          </div>
+        </div>
+
+        <!-- ダウンロードバー -->
+        <div class="dl-bar">
+          <label>形式</label>
+          <select id="fmt">
+            <option value="png">PNG</option>
+            <option value="jpeg" selected>JPEG</option>
+          </select>
+          <div id="jpeg-quality-wrap" style="display: flex">
+            <label>品質</label>
+            <input
+              type="range"
+              id="jpeg-quality"
+              min="1"
+              max="100"
+              value="92"
+              style="width: 80px; accent-color: var(--accent)"
+            />
+            <span
+              id="jpeg-quality-val"
+              style="font-size: 12px; font-weight: 600"
+              >92%</span
+            >
+          </div>
+          <div class="spacer"></div>
+          <button
+            class="btn btn-success"
+            id="btn-download"
+            style="min-height: 40px; padding: 0 20px; font-size: 13px"
+          >
+            <i class="fa-solid fa-download"></i> ダウンロード
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 画像プレビューモーダル（スマホ保存用） ── -->
+    <div
+      class="modal-overlay"
+      id="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box" id="modal-box">
+        <div class="modal-header">
+          <h2>
+            <i
+              class="fa-solid fa-image"
+              style="color: var(--accent); margin-right: 8px"
+            ></i
+            >画像を保存
+          </h2>
+          <button
+            class="btn-close-modal"
+            id="modal-close-x"
+            aria-label="閉じる"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-guide">
+          <i
+            class="fa-solid fa-hand-pointer"
+            style="font-size: 16px; flex-shrink: 0"
+          ></i>
+          <span
+            >画像を<strong>長押し</strong>（iOSの場合）または<strong>長押し→保存</strong>（Android）で端末に保存できます。</span
+          >
+        </div>
+        <div class="modal-body">
+          <img id="modal-img" src="" alt="連結画像" draggable="false" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn-close-modal" id="modal-close-btn">閉じる</button>
+          <button class="btn-dl-from-modal" id="modal-dl-btn">
+            <i class="fa-solid fa-download"></i> ダウンロード（PC）
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ================================================================
+      //  状態管理
+      // ================================================================
+      const state = {
+        images: [],
+        gap: 0,
+        bgColor: "#ffffff",
+        mode: "stretch", // 'stretch' or 'natural'
+        canvasWidthMode: "max", // 'max' or 'min'（自然サイズモード時）
+        alignH: "center", // 横揃え（自然サイズモード時）
+        alignV: "start", // 縦揃え（自然サイズモード時）
+        rowDefs: [{ cols: 3 }, { cols: 2 }],
+      };
+
+      let dragSrcIdx = null; // サムネイルドラッグ
+      let dragSrcEl = null;
+      let touchDragIdx = null;
+      let touchDragEl = null;
+      let touchDragClone = null;
+
+      // ================================================================
+      //  DOM取得
+      // ================================================================
+      const dropzone = document.getElementById("dropzone");
+      const fileInput = document.getElementById("file-input");
+      const thumbList = document.getElementById("thumb-list");
+      const canvas = document.getElementById("preview-canvas");
+      const ctx = canvas.getContext("2d");
+      const previewEmpty = document.getElementById("preview-empty");
+      const previewCanvasWrap = document.getElementById("preview-canvas-wrap");
+      const sizeBadge = document.getElementById("size-badge");
+      const sizeW = document.getElementById("size-w");
+      const sizeH = document.getElementById("size-h");
+      const gapSlider = document.getElementById("gap");
+      const gapVal = document.getElementById("gap-val");
+      const bgColorPicker = document.getElementById("bg-color");
+      const fmtSel = document.getElementById("fmt");
+      const jpegWrap = document.getElementById("jpeg-quality-wrap");
+      const jpegSlider = document.getElementById("jpeg-quality");
+      const jpegQualityVal = document.getElementById("jpeg-quality-val");
+      const btnDownload = document.getElementById("btn-download");
+      const btnClear = document.getElementById("btn-clear");
+      const btnTight = document.getElementById("btn-tight");
+      const rowLayoutPanel = document.getElementById("row-layout-panel");
+      const rowLayoutList = document.getElementById("row-layout-list");
+      const rowLayoutSummary = document.getElementById("row-layout-summary");
+      const btnAddRow = document.getElementById("btn-add-row");
+      const modalOverlay = document.getElementById("modal-overlay");
+      const modalImg = document.getElementById("modal-img");
+      const modalCloseX = document.getElementById("modal-close-x");
+      const modalCloseBtn = document.getElementById("modal-close-btn");
+      const modalDlBtn = document.getElementById("modal-dl-btn");
+      // 新規DOM取得
+      const modeStretchBtn = document.getElementById("mode-stretch-btn");
+      const modeNaturalBtn = document.getElementById("mode-natural-btn");
+      const canvasWidthMode = document.getElementById("canvas-width-mode");
+
+      // ================================================================
+      //  デバイス判定
+      // ================================================================
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      // ================================================================
+      //  ファイル読み込み
+      // ================================================================
+      function loadFiles(files) {
+        const promises = Array.from(files)
+          .filter((f) => f.type.startsWith("image/"))
+          .map(
+            (f) =>
+              new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  const img = new Image();
+                  img.onload = () => {
+                    state.images.push({
+                      id: Date.now() + Math.random(),
+                      img,
+                      name: f.name,
+                    });
+                    resolve();
+                  };
+                  img.src = e.target.result;
+                };
+                reader.readAsDataURL(f);
+              }),
+          );
+        Promise.all(promises).then(() => {
+          renderThumbs();
+          renderCanvas();
+          updateRowLayoutSummary();
+        });
+      }
+
+      dropzone.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", (e) => loadFiles(e.target.files));
+
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("drag-over");
+      });
+      dropzone.addEventListener("dragleave", () =>
+        dropzone.classList.remove("drag-over"),
+      );
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("drag-over");
+        loadFiles(e.dataTransfer.files);
+      });
+
+      btnClear.addEventListener("click", () => {
+        state.images = [];
+        renderThumbs();
+        renderCanvas();
+        updateRowLayoutSummary();
+      });
+
+      // ================================================================
+      //  サムネイル描画
+      // ================================================================
+
+      function renderThumbs() {
+        thumbList.innerHTML = "";
+        state.images.forEach((item, i) => {
+          const el = document.createElement("div");
+          el.className = "thumb-item";
+          el.dataset.idx = i;
+          el.draggable = true;
+
+          const img = document.createElement("img");
+          img.src = item.img.src;
+          img.alt = item.name;
+
+          const num = document.createElement("span");
+          num.className = "thumb-num";
+          num.textContent = i + 1;
+
+          const del = document.createElement("button");
+          del.className = "thumb-del";
+          del.innerHTML = "✕";
+          del.title = "削除";
+          del.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            state.images.splice(i, 1);
+            renderThumbs();
+            renderCanvas();
+            updateRowLayoutSummary();
+          });
+
+          el.appendChild(img);
+          el.appendChild(num);
+          el.appendChild(del);
+
+          // マウスドラッグ
+          el.addEventListener("dragstart", (e) => {
+            dragSrcIdx = i;
+            dragSrcEl = el; // ← 追加
+            el.classList.add("drag-source");
+            e.dataTransfer.effectAllowed = "move";
+          });
+          el.addEventListener("dragend", () => {
+            el.classList.remove("drag-source");
+            dragSrcEl = null; // ← 追加
+            clearInsertIndicators();
+          });
+
+          // タッチドラッグ
+          el.addEventListener("touchstart", handleTouchStart, {
+            passive: false,
+          });
+          el.addEventListener("touchmove", handleTouchMove, { passive: false });
+          el.addEventListener("touchend", handleTouchEnd, { passive: false });
+
+          thumbList.appendChild(el);
+        });
+      }
+
+      // thumbList ではなく document で受ける
+      document.addEventListener("dragover", (e) => {
+        if (dragSrcIdx === null) return;
+        // リスト付近にカーソルがあるときだけインジケーター表示
+        const listRect = thumbList.getBoundingClientRect();
+        // リストの上下に少し余裕（縦方向はリスト範囲内に限定）
+        if (e.clientY < listRect.top || e.clientY > listRect.bottom) {
+          clearInsertIndicators();
+          return;
+        }
+        e.preventDefault(); // ← ドロップ可能にするために必要
+
+        // ★ 元位置の上ならラインを消す
+        if (dragSrcEl) {
+          const srcRect = dragSrcEl.getBoundingClientRect();
+          if (
+            e.clientX >= srcRect.left &&
+            e.clientX <= srcRect.right &&
+            e.clientY >= srcRect.top &&
+            e.clientY <= srcRect.bottom
+          ) {
+            clearInsertIndicators();
+            return;
+          }
+        }
+
+        const hit = findNearestThumb(e.clientX, e.clientY, dragSrcEl);
+        if (hit) showInsertLine(hit.el, hit.before);
+        else clearInsertIndicators();
+      });
+
+      document.addEventListener("drop", (e) => {
+        if (dragSrcIdx === null) return;
+        const listRect = thumbList.getBoundingClientRect();
+        if (e.clientY < listRect.top || e.clientY > listRect.bottom) {
+          clearInsertIndicators();
+          dragSrcIdx = null;
+          return;
+        }
+        e.preventDefault();
+        clearInsertIndicators();
+
+        // ★ 元位置の近くにドロップされた場合はキャンセル
+        if (dragSrcEl) {
+          const srcRect = dragSrcEl.getBoundingClientRect();
+          if (
+            e.clientX >= srcRect.left &&
+            e.clientX <= srcRect.right &&
+            e.clientY >= srcRect.top &&
+            e.clientY <= srcRect.bottom
+          ) {
+            dragSrcIdx = null;
+            return;
+          }
+        }
+
+        const hit = findNearestThumb(e.clientX, e.clientY, dragSrcEl);
+        if (!hit) {
+          dragSrcIdx = null;
+          return;
+        }
+        const toIdx = parseInt(hit.el.dataset.idx);
+        if (isNaN(toIdx) || toIdx === dragSrcIdx) {
+          dragSrcIdx = null;
+          return;
+        }
+
+        const moved = state.images.splice(dragSrcIdx, 1)[0];
+        const insertIdx =
+          toIdx > dragSrcIdx
+            ? hit.before
+              ? toIdx - 1
+              : toIdx
+            : hit.before
+              ? toIdx
+              : toIdx + 1;
+        state.images.splice(insertIdx, 0, moved);
+        dragSrcIdx = null;
+        renderThumbs();
+        renderCanvas();
+        updateRowLayoutSummary();
+        flashSwapped();
+      });
+
+      function findNearestThumb(x, y, excludeEl = null) {
+        const allThumbs = Array.from(thumbList.querySelectorAll(".thumb-item"));
+        if (allThumbs.length === 0) return null;
+
+        // ★ カーソルY座標が含まれる「行」を、除外前の全サムネから特定
+        // 各サムネのY中心と比較して、最も近いものの行をカーソル行とみなす
+        let cursorRowY = null;
+        let minRowDist = Infinity;
+        allThumbs.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const cy = rect.top + rect.height / 2;
+          const dist = Math.abs(y - cy);
+          if (dist < minRowDist) {
+            minRowDist = dist;
+            cursorRowY = cy;
+          }
+        });
+
+        // その行に属するサムネ（除外対象は外す）
+        const rowThumbs = allThumbs.filter((el) => {
+          if (el === excludeEl) return false;
+          const rect = el.getBoundingClientRect();
+          const cy = rect.top + rect.height / 2;
+          return Math.abs(cy - cursorRowY) < rect.height / 2;
+        });
+
+        // ★ 行内に自分以外のサムネがなければ null（＝何もしない）
+        if (rowThumbs.length === 0) return null;
+
+        // 行内で先頭より左、最終より右の端判定
+        const firstRect = rowThumbs[0].getBoundingClientRect();
+        if (x < firstRect.left) {
+          return { el: rowThumbs[0], before: true };
+        }
+        const lastRect =
+          rowThumbs[rowThumbs.length - 1].getBoundingClientRect();
+        if (x > lastRect.right) {
+          return { el: rowThumbs[rowThumbs.length - 1], before: false };
+        }
+
+        // 行内で最寄りのサムネを探す
+        let nearest = null;
+        let minDist = Infinity;
+        rowThumbs.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const dist = Math.abs(x - cx);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = el;
+          }
+        });
+        if (!nearest) return null;
+        const rect = nearest.getBoundingClientRect();
+        return { el: nearest, before: x < rect.left + rect.width / 2 };
+      }
+
+      // ── タッチドラッグ ──
+      function handleTouchStart(e) {
+        if (e.target.classList.contains("thumb-del")) return;
+        const el = e.currentTarget;
+        touchDragIdx = parseInt(el.dataset.idx);
+        touchDragEl = el;
+        e.preventDefault();
+
+        touchDragClone = el.cloneNode(true);
+        Object.assign(touchDragClone.style, {
+          position: "fixed",
+          zIndex: 9999,
+          opacity: "0.8",
+          pointerEvents: "none",
+          width: el.offsetWidth + "px",
+          height: el.offsetHeight + "px",
+          borderRadius: "8px",
+          border: "2px solid var(--accent)",
+          transform: "scale(1.08)",
+        });
+        document.body.appendChild(touchDragClone);
+        moveTouchClone(e.touches[0]);
+        el.classList.add("drag-source");
+      }
+
+      function moveTouchClone(touch) {
+        if (!touchDragClone) return;
+        touchDragClone.style.left = touch.clientX - 32 + "px";
+        touchDragClone.style.top = touch.clientY - 32 + "px";
+      }
+
+      function handleTouchMove(e) {
+        if (touchDragIdx === null) return;
+        e.preventDefault();
+        moveTouchClone(e.touches[0]);
+
+        const touch = e.touches[0];
+
+        // ★ 元位置の上ならラインを消す
+        if (touchDragEl) {
+          const srcRect = touchDragEl.getBoundingClientRect();
+          if (
+            touch.clientX >= srcRect.left &&
+            touch.clientX <= srcRect.right &&
+            touch.clientY >= srcRect.top &&
+            touch.clientY <= srcRect.bottom
+          ) {
+            clearInsertIndicators();
+            return;
+          }
+        }
+
+        const hit = findNearestThumb(touch.clientX, touch.clientY, touchDragEl); // ← 第3引数
+        if (hit) {
+          showInsertLine(hit.el, hit.before);
+        } else {
+          clearInsertIndicators();
+        }
+      }
+
+      function handleTouchEnd(e) {
+        if (touchDragIdx === null) return;
+        if (touchDragClone) {
+          touchDragClone.remove();
+          touchDragClone = null;
+        }
+        if (touchDragEl) touchDragEl.classList.remove("drag-source");
+
+        const touch = e.changedTouches[0];
+
+        // ★ 元位置の上ならキャンセル
+        let cancelled = false;
+        if (touchDragEl) {
+          const srcRect = touchDragEl.getBoundingClientRect();
+          if (
+            touch.clientX >= srcRect.left &&
+            touch.clientX <= srcRect.right &&
+            touch.clientY >= srcRect.top &&
+            touch.clientY <= srcRect.bottom
+          ) {
+            cancelled = true;
+          }
+        }
+
+        const hit = findNearestThumb(touch.clientX, touch.clientY, touchDragEl); // ← 第3引数
+        let swapped = false;
+        if (hit) {
+          const toIdx = parseInt(hit.el.dataset.idx);
+          if (!isNaN(toIdx) && toIdx !== touchDragIdx) {
+            const moved = state.images.splice(touchDragIdx, 1)[0];
+            const insertIdx =
+              toIdx > touchDragIdx
+                ? hit.before
+                  ? toIdx - 1
+                  : toIdx
+                : hit.before
+                  ? toIdx
+                  : toIdx + 1;
+            state.images.splice(insertIdx, 0, moved);
+            swapped = true;
+          }
+        }
+        clearInsertIndicators();
+        touchDragIdx = null;
+        touchDragEl = null;
+        renderThumbs();
+        renderCanvas();
+        updateRowLayoutSummary();
+        if (swapped) flashSwapped();
+      }
+
+      // ── ドラッグヘルパー ──
+      function clearInsertIndicators() {
+        document
+          .querySelectorAll(".thumb-insert-line")
+          .forEach((el) => el.remove());
+      }
+
+      function showInsertLine(targetEl, isBefore) {
+        clearInsertIndicators();
+        if (!targetEl) return;
+        const line = document.createElement("div");
+        line.className = "thumb-insert-line " + (isBefore ? "before" : "after");
+        targetEl.appendChild(line);
+      }
+
+      function flashSwapped() {
+        // 短い遅延後に全サムネに完了フラッシュを掛ける
+        requestAnimationFrame(() => {
+          document.querySelectorAll(".thumb-item").forEach((el) => {
+            el.classList.remove("swapped");
+            void el.offsetWidth; // アニメーションリセット
+            el.classList.add("swapped");
+          });
+        });
+      }
+
+      // 行レイアウトパネルは常時表示
+      rowLayoutPanel.classList.add("visible");
+
+      function setMode(mode) {
+        state.mode = mode;
+        document.body.classList.toggle("mode-stretch", mode === "stretch");
+        document.body.classList.toggle("mode-natural", mode === "natural");
+        modeStretchBtn.classList.toggle("active", mode === "stretch");
+        modeNaturalBtn.classList.toggle("active", mode === "natural");
+        renderCanvas();
+      }
+
+      modeStretchBtn.addEventListener("click", () => setMode("stretch"));
+      modeNaturalBtn.addEventListener("click", () => setMode("natural"));
+
+      canvasWidthMode.addEventListener("change", () => {
+        state.canvasWidthMode = canvasWidthMode.value;
+        renderCanvas();
+      });
+
+      // 揃えボタン
+      document.querySelectorAll(".align-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const axis = btn.dataset.axis;
+          const val = btn.dataset.val;
+          if (axis === "h") state.alignH = val;
+          else state.alignV = val;
+          document
+            .querySelectorAll(`.align-btn[data-axis="${axis}"]`)
+            .forEach((b) => {
+              b.classList.toggle("active", b.dataset.val === val);
+            });
+          renderCanvas();
+        });
+      });
+
+      // 初期化時にモードを適用
+      setMode("stretch");
+
+      // ================================================================
+      //  行レイアウト管理
+      // ================================================================
+      function renderRowLayoutList() {
+        rowLayoutList.innerHTML = "";
+        state.rowDefs.forEach((row, i) => {
+          const item = document.createElement("div");
+          item.className = "row-layout-item";
+
+          const top = document.createElement("div");
+          top.className = "row-layout-item-top";
+
+          const num = document.createElement("span");
+          num.className = "row-num";
+          num.textContent = `${i + 1}行目`;
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn-del-row";
+          delBtn.innerHTML = "✕";
+          delBtn.title = "この行を削除";
+          delBtn.addEventListener("click", () => {
+            if (state.rowDefs.length > 1) {
+              state.rowDefs.splice(i, 1);
+              renderRowLayoutList();
+              updateRowLayoutSummary();
+              renderCanvas();
+            }
+          });
+
+          top.appendChild(num);
+          top.appendChild(delBtn);
+
+          const picker = document.createElement("div");
+          picker.className = "cols-picker";
+
+          [1, 2, 3, 4, 5].forEach((n) => {
+            const btn = document.createElement("button");
+            btn.className =
+              "cols-picker-btn" + (row.cols === n ? " selected" : "");
+            btn.textContent = n;
+            btn.addEventListener("click", () => {
+              state.rowDefs[i].cols = n;
+              picker.querySelectorAll(".cols-picker-btn").forEach((b, bi) => {
+                b.classList.toggle("selected", bi + 1 === n);
+              });
+              updateRowLayoutSummary();
+              renderCanvas();
+            });
+            picker.appendChild(btn);
+          });
+
+          item.appendChild(top);
+          item.appendChild(picker);
+          rowLayoutList.appendChild(item);
+        });
+      }
+
+      btnAddRow.addEventListener("click", () => {
+        state.rowDefs.push({ cols: 2 });
+        renderRowLayoutList();
+        updateRowLayoutSummary();
+        renderCanvas();
+      });
+
+      function updateRowLayoutSummary() {
+        const total = state.rowDefs.reduce((s, r) => s + r.cols, 0);
+        const imgCount = state.images.length;
+        let msg = `画像 ${imgCount} 枚 / 枠 ${total} 個`;
+        if (imgCount > total) msg += `（${imgCount - total} 枚あふれ）`;
+        else if (imgCount < total) msg += `（${total - imgCount} 枠あまり）`;
+        rowLayoutSummary.textContent = msg;
+      }
+
+      // 初期描画
+      renderRowLayoutList();
+
+      // ================================================================
+      //  詳細設定
+      // ================================================================
+      gapSlider.addEventListener("input", () => {
+        state.gap = parseInt(gapSlider.value);
+        gapVal.textContent = state.gap + "px";
+        renderCanvas();
+      });
+
+      btnTight.addEventListener("click", () => {
+        gapSlider.value = 0;
+        state.gap = 0;
+        gapVal.textContent = "0px";
+        renderCanvas();
+      });
+
+      bgColorPicker.addEventListener("input", () => {
+        state.bgColor = bgColorPicker.value;
+        renderCanvas();
+      });
+
+      fmtSel.addEventListener("change", () => {
+        jpegWrap.style.display = fmtSel.value === "jpeg" ? "flex" : "none";
+      });
+
+      jpegSlider.addEventListener("input", () => {
+        jpegQualityVal.textContent = jpegSlider.value + "%";
+      });
+
+      // ================================================================
+      //  Canvas描画
+      // ================================================================
+      function renderCanvas() {
+        const imgs = state.images;
+        if (imgs.length === 0) {
+          previewCanvasWrap.classList.remove("visible");
+          previewEmpty.style.display = "flex";
+          sizeBadge.classList.remove("visible");
+          return;
+        }
+        previewCanvasWrap.classList.add("visible");
+        previewEmpty.style.display = "none";
+
+        if (state.mode === "stretch") {
+          drawStretchMode(imgs, state.rowDefs, state.gap, state.bgColor);
+        } else {
+          drawNaturalMode(
+            imgs,
+            state.rowDefs,
+            state.gap,
+            state.bgColor,
+            state.canvasWidthMode,
+            state.alignH,
+            state.alignV,
+          );
+        }
+
+        sizeW.textContent = canvas.width.toLocaleString();
+        sizeH.textContent = canvas.height.toLocaleString();
+        sizeBadge.classList.add("visible");
+      }
+
+      // 画像を行に割り当てる共通処理
+      function assignToRows(imgs, rowDefs) {
+        const rows = [];
+        let idx = 0;
+        for (const def of rowDefs) {
+          const rowImgs = [];
+          for (let j = 0; j < def.cols && idx < imgs.length; j++, idx++) {
+            rowImgs.push(imgs[idx]);
+          }
+          if (rowImgs.length > 0) rows.push(rowImgs);
+          if (idx >= imgs.length) break;
+        }
+        return rows;
+      }
+
+      // 伸び縮みモード（既存仕様）
+      function drawStretchMode(imgs, rowDefs, gap, bg) {
+        const rows = assignToRows(imgs, rowDefs);
+        if (rows.length === 0) return;
+
+        // 各行の自然幅を計算（行内で最も高い画像に揃えたとき）
+        const rowNaturals = rows.map((rowImgs) => {
+          const baseH = Math.max(...rowImgs.map((it) => it.img.naturalHeight));
+          const widths = rowImgs.map(
+            (it) => it.img.naturalWidth * (baseH / it.img.naturalHeight),
+          );
+          const naturalRowW =
+            widths.reduce((s, w) => s + w, 0) +
+            gap * Math.max(0, rowImgs.length - 1);
+          return { baseH, widths, naturalRowW };
+        });
+
+        const totalW = Math.max(...rowNaturals.map((r) => r.naturalRowW));
+
+        const rowMetrics = rowNaturals.map(({ baseH, widths, naturalRowW }) => {
+          const scaleX = totalW / naturalRowW;
+          return {
+            finalWidths: widths.map((w) => w * scaleX),
+            finalH: baseH * scaleX,
+          };
+        });
+
+        const totalH =
+          rowMetrics.reduce((s, m) => s + m.finalH, 0) +
+          gap * Math.max(0, rows.length - 1);
+
+        canvas.width = Math.round(totalW);
+        canvas.height = Math.round(totalH);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let curY = 0;
+        rows.forEach((rowImgs, ri) => {
+          const { finalWidths, finalH } = rowMetrics[ri];
+          let curX = 0;
+          rowImgs.forEach((item, ci) => {
+            ctx.drawImage(
+              item.img,
+              0,
+              0,
+              item.img.naturalWidth,
+              item.img.naturalHeight,
+              Math.round(curX),
+              Math.round(curY),
+              Math.round(finalWidths[ci]),
+              Math.round(finalH),
+            );
+            curX += finalWidths[ci] + gap;
+          });
+          curY += finalH + gap;
+        });
+      }
+
+      // 自然サイズモード（拡縮なし）
+      function drawNaturalMode(
+        imgs,
+        rowDefs,
+        gap,
+        bg,
+        widthMode,
+        alignH,
+        alignV,
+      ) {
+        const rows = assignToRows(imgs, rowDefs);
+        if (rows.length === 0) return;
+
+        // 各行：画像を元サイズで横並びにしたときの幅と、最も高い画像の高さ
+        const rowMetrics = rows.map((rowImgs) => {
+          const widths = rowImgs.map((it) => it.img.naturalWidth);
+          const rowW =
+            widths.reduce((s, w) => s + w, 0) +
+            gap * Math.max(0, rowImgs.length - 1);
+          const rowH = Math.max(...rowImgs.map((it) => it.img.naturalHeight));
+          return { widths, rowW, rowH };
+        });
+
+        // キャンバス幅：最大 or 最小
+        const totalW =
+          widthMode === "min"
+            ? Math.min(...rowMetrics.map((m) => m.rowW))
+            : Math.max(...rowMetrics.map((m) => m.rowW));
+
+        const totalH =
+          rowMetrics.reduce((s, m) => s + m.rowH, 0) +
+          gap * Math.max(0, rows.length - 1);
+
+        canvas.width = Math.round(totalW);
+        canvas.height = Math.round(totalH);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let curY = 0;
+        rows.forEach((rowImgs, ri) => {
+          const { widths, rowW, rowH } = rowMetrics[ri];
+
+          // 横揃え：行の開始X位置
+          let startX;
+          if (alignH === "center") startX = (totalW - rowW) / 2;
+          else if (alignH === "end") startX = totalW - rowW;
+          else startX = 0;
+
+          let curX = startX;
+          rowImgs.forEach((item, ci) => {
+            const w = widths[ci];
+            const h = item.img.naturalHeight;
+
+            // 縦揃え：行内での画像のY位置
+            let imgY;
+            if (alignV === "center") imgY = curY + (rowH - h) / 2;
+            else if (alignV === "end") imgY = curY + (rowH - h);
+            else imgY = curY;
+
+            ctx.drawImage(
+              item.img,
+              0,
+              0,
+              item.img.naturalWidth,
+              item.img.naturalHeight,
+              Math.round(curX),
+              Math.round(imgY),
+              Math.round(w),
+              Math.round(h),
+            );
+            curX += w + gap;
+          });
+
+          curY += rowH + gap;
+        });
+      }
+
+      // ================================================================
+      //  ダウンロード
+      // ================================================================
+      function getDataUrl() {
+        const fmt = fmtSel.value;
+        if (fmt === "jpeg") {
+          const q = parseInt(jpegSlider.value) / 100;
+          return canvas.toDataURL("image/jpeg", q);
+        }
+        return canvas.toDataURL("image/png");
+      }
+
+      function getFileName() {
+        const fmt = fmtSel.value;
+        const ext = fmt === "jpeg" ? "jpg" : "png";
+        return `combined_${Date.now()}.${ext}`;
+      }
+
+      btnDownload.addEventListener("click", () => {
+        if (state.images.length === 0) return;
+        const dataUrl = getDataUrl();
+        const fileName = getFileName();
+
+        if (isMobile) {
+          // スマホ：モーダルで画像表示
+          openModal(dataUrl, fileName);
+        } else {
+          // PC：そのままダウンロード
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          a.download = fileName;
+          a.click();
+        }
+      });
+
+      // ================================================================
+      //  モーダル
+      // ================================================================
+      function openModal(dataUrl, fileName) {
+        modalImg.src = dataUrl;
+        modalOverlay.classList.add("open");
+        document.body.style.overflow = "hidden";
+
+        // PCダウンロードボタン
+        modalDlBtn.onclick = () => {
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          a.download = fileName;
+          a.click();
+        };
+      }
+
+      function closeModal() {
+        modalOverlay.classList.remove("open");
+        document.body.style.overflow = "";
+        modalImg.src = "";
+      }
+
+      modalCloseX.addEventListener("click", closeModal);
+      modalCloseBtn.addEventListener("click", closeModal);
+      modalOverlay.addEventListener("click", (e) => {
+        if (e.target === modalOverlay) closeModal();
+      });
+
+      // PC でもダウンロードボタンを押したときにモーダルを開く選択も可能だが、
+      // PCでは直接ダウンロードする方が使いやすいのでそのままにする
+
+      // ================================================================
+      //  初期化
+      // ================================================================
+      renderThumbs();
+      renderCanvas();
+      updateRowLayoutSummary();
+    </script>
+  </body>
+</html>

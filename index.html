@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>マイツール ランチャー</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: #fff;
+        margin: 0;
+        padding: 40px 20px;
+        min-height: 100vh;
+      }
+      h1 {
+        text-align: center;
+        font-size: 2em;
+        margin-bottom: 8px;
+        letter-spacing: 0.05em;
+      }
+      .subtitle {
+        text-align: center;
+        opacity: 0.8;
+        margin-bottom: 30px;
+        font-size: 0.95em;
+      }
+      .toolbar {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .toolbar button {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #fff;
+        padding: 6px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        margin: 0 4px;
+      }
+      .toolbar button:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 20px;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        padding: 22px;
+        transition:
+          transform 0.2s,
+          background 0.2s,
+          box-shadow 0.2s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        user-select: none;
+        min-height: 200px;
+      }
+      .card:hover {
+        transform: translateY(-4px);
+        background: rgba(255, 255, 255, 0.2);
+      }
+      .card.dragging {
+        opacity: 0.4;
+        transform: scale(0.95);
+      }
+      .card.drag-over {
+        box-shadow: 0 0 0 3px #ffd700;
+      }
+      .card-icon {
+        font-size: 2.4em;
+        margin-bottom: 10px;
+        font-family:
+          "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+        line-height: 1;
+        height: 1.2em;
+      }
+      .card-title {
+        font-size: 1.15em;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+      .card-desc {
+        font-size: 0.85em;
+        opacity: 0.85;
+        margin-bottom: 10px;
+        line-height: 1.5;
+        flex-grow: 1;
+      }
+      .card-version {
+        display: inline-block;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-family: monospace;
+      }
+      .drag-handle {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        font-size: 1.2em;
+        opacity: 0.4;
+        cursor: grab;
+      }
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+      .missing {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .missing:hover {
+        transform: none;
+        background: rgba(255, 255, 255, 0.12);
+      }
+      details {
+        max-width: 1100px;
+        margin: 40px auto 0;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 10px;
+        padding: 14px 20px;
+      }
+      summary {
+        cursor: pointer;
+        font-size: 0.95em;
+        user-select: none;
+      }
+      .history {
+        margin-top: 14px;
+      }
+      .history-item {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.88em;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .history-item:last-child {
+        border-bottom: none;
+      }
+      .history-item a {
+        color: #9ecbff;
+        text-decoration: none;
+      }
+      .history-item a:hover {
+        text-decoration: underline;
+      }
+      .history-name {
+        font-family: monospace;
+        opacity: 0.85;
+      }
+      footer {
+        text-align: center;
+        margin-top: 40px;
+        opacity: 0.6;
+        font-size: 0.8em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🛠 マイツール ランチャー</h1>
+    <p class="subtitle">
+      カード右上の
+      <span style="opacity: 0.6">⋮⋮</span>
+      をドラッグして並び替えできます（順序は自動保存）
+    </p>
+
+    <div class="toolbar">
+      <button onclick="resetOrder()">並び順をリセット</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <details>
+      <summary>📦 過去バージョンを表示</summary>
+      <div class="history" id="history"></div>
+    </details>
+
+    <footer>新ツール追加はHTML内 <code>TOOLS</code> 配列を編集</footer>
+
+    <script>
+      // ========================================
+      // ツール一覧（基本定義）
+      // ========================================
+      const TOOLS = [
+        {
+          basename: "genspark_gallery",
+          title: "Gensparkギャラリー",
+          desc: "Gensparkで生成した画像をギャラリー表示",
+          icon: "🖼",
+          noVersion: true, // ← 追加
+        },
+        {
+          basename: "prompt_builder",
+          title: "プロンプトビルダー",
+          desc: "画像生成用プロンプトを組み立てるツール",
+          icon: "✍",
+          noVersion: true, // ← 追加
+        },
+        {
+          basename: "pic_combine",
+          title: "画像結合ツール",
+          desc: "複数の画像を1枚に結合",
+          icon: "🧩",
+          noVersion: true, // ← 追加
+        },
+        {
+          basename: "prompt_translator", // ← 日本語名から英語名に変更推奨
+          title: "プロンプト和訳ツール",
+          desc: "英語プロンプトを日本語に翻訳",
+          icon: "🌐",
+          noVersion: true,
+        },
+      ];
+
+      const ORDER_KEY = "launcher_tool_order";
+
+      // 保存された並び順を適用
+      function getOrderedTools() {
+        const saved = localStorage.getItem(ORDER_KEY);
+        if (!saved) return [...TOOLS];
+        try {
+          const order = JSON.parse(saved);
+          const map = new Map(TOOLS.map((t) => [t.basename, t]));
+          const ordered = [];
+          // 保存された順序で並べる
+          for (const basename of order) {
+            if (map.has(basename)) {
+              ordered.push(map.get(basename));
+              map.delete(basename);
+            }
+          }
+          // 保存されていない新規ツールは末尾に追加
+          for (const t of map.values()) ordered.push(t);
+          return ordered;
+        } catch {
+          return [...TOOLS];
+        }
+      }
+
+      function saveOrder() {
+        const cards = document.querySelectorAll("#grid .card");
+        const order = Array.from(cards).map((c) => c.dataset.basename);
+        localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+      }
+
+      function resetOrder() {
+        localStorage.removeItem(ORDER_KEY);
+        location.reload();
+      }
+
+      async function fileExists(url) {
+        try {
+          const res = await fetch(url, { method: "HEAD" });
+          return res.ok;
+        } catch {
+          try {
+            const res = await fetch(url);
+            return res.ok;
+          } catch {
+            return false;
+          }
+        }
+      }
+
+      async function findVersions(basename) {
+        const found = [];
+        const checks = [];
+        for (let v = 1; v <= 99; v++) {
+          const url = `${basename}_v${v}.html`;
+          checks.push(
+            fileExists(url).then((ok) => {
+              if (ok) found.push(v);
+            }),
+          );
+        }
+        await Promise.all(checks);
+        return found.sort((a, b) => b - a);
+      }
+
+      // ========================================
+      // ドラッグ＆ドロップ機能
+      // ========================================
+      let draggedCard = null;
+
+      function enableDragAndDrop(card) {
+        card.draggable = true;
+        let enterCounter = 0; // ドラッグ侵入カウンタ
+
+        card.addEventListener("dragstart", (e) => {
+          draggedCard = card;
+          card.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+        });
+
+        card.addEventListener("dragend", () => {
+          card.classList.remove("dragging");
+          document.querySelectorAll(".card").forEach((c) => {
+            c.classList.remove("drag-over");
+          });
+          draggedCard = null;
+          saveOrder();
+        });
+
+        card.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        });
+
+        card.addEventListener("dragenter", (e) => {
+          if (card === draggedCard) return;
+          enterCounter++;
+          card.classList.add("drag-over");
+        });
+
+        card.addEventListener("dragleave", (e) => {
+          if (card === draggedCard) return;
+          enterCounter--;
+          if (enterCounter <= 0) {
+            enterCounter = 0;
+            card.classList.remove("drag-over");
+          }
+        });
+
+        card.addEventListener("drop", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          enterCounter = 0;
+          if (draggedCard && draggedCard !== card) {
+            const grid = document.getElementById("grid");
+            const cards = Array.from(grid.children);
+            const draggedIdx = cards.indexOf(draggedCard);
+            const targetIdx = cards.indexOf(card);
+            if (draggedIdx < targetIdx) {
+              grid.insertBefore(draggedCard, card.nextSibling);
+            } else {
+              grid.insertBefore(draggedCard, card);
+            }
+          }
+          card.classList.remove("drag-over");
+        });
+
+        card.addEventListener("click", (e) => {
+          if (card.classList.contains("dragging")) e.preventDefault();
+        });
+      }
+
+      async function render() {
+        const grid = document.getElementById("grid");
+        const history = document.getElementById("history");
+        grid.innerHTML = "";
+        history.innerHTML = "";
+
+        const tools = getOrderedTools();
+
+        for (const tool of tools) {
+          let url = null;
+          let versionLabel = "";
+          let exists = false;
+
+          if (tool.noVersion) {
+            url = `${tool.basename}.html`;
+            exists = await fileExists(url);
+            versionLabel = exists ? "ファイルあり" : "見つかりません";
+          } else {
+            const versions = await findVersions(tool.basename);
+            if (versions.length > 0) {
+              exists = true;
+              url = `${tool.basename}_v${versions[0]}.html`;
+              versionLabel = `v${versions[0]}（最新）`;
+              // 過去バージョン
+              for (const v of versions.slice(1)) {
+                const item = document.createElement("div");
+                item.className = "history-item";
+                item.innerHTML = `
+              <span><strong>${tool.title}</strong> <span class="history-name">${tool.basename}_v${v}.html</span></span>
+              <a href="${tool.basename}_v${v}.html">開く →</a>
+            `;
+                history.appendChild(item);
+              }
+            } else {
+              versionLabel = "見つかりません";
+            }
+          }
+
+          const card = document.createElement(exists ? "a" : "div");
+          card.className = "card" + (exists ? "" : " missing");
+          card.dataset.basename = tool.basename;
+          if (exists) card.href = url;
+          card.innerHTML = `
+        <span class="drag-handle" title="ドラッグで並び替え">⋮⋮</span>
+        <div class="card-icon">${tool.icon}</div>
+        <div class="card-title">${tool.title}</div>
+        <div class="card-desc">${tool.desc}</div>
+        <span class="card-version">${versionLabel}</span>
+      `;
+          enableDragAndDrop(card);
+          grid.appendChild(card);
+        }
+
+        if (!history.hasChildNodes()) {
+          history.innerHTML =
+            '<div style="opacity:0.6;font-size:0.85em;">過去バージョンはありません</div>';
+        }
+      }
+
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,2529 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompt Builder for GPT Image</title>
+    <style>
+      :root {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b27;
+        --bg-tertiary: #1c2333;
+        --accent: #6699ff;
+        --accent-hover: #426579;
+        --accent-soft: rgba(99, 102, 241, 0.15);
+        --accent-from: #bbe2f1;
+        --accent-to: #4facfe;
+        --warn: #fbbf24;
+        --warn-bg: rgba(251, 191, 36, 0.1);
+        --highlight: rgba(102, 153, 255, 0.35);
+        --highlight-strong: rgba(102, 153, 255, 0.55);
+        --text-primary: #e6edf3;
+        --text-secondary: #8b949e;
+        --text-muted: #484f58;
+        --border: rgba(255, 255, 255, 0.07);
+        --radius: 10px;
+        --transition: 0.2s ease;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-primary);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent);
+      }
+
+      header {
+        background: linear-gradient(
+          135deg,
+          var(--bg-secondary),
+          var(--bg-tertiary)
+        );
+        border-bottom: 1px solid var(--border);
+        padding: 14px 24px;
+        flex-shrink: 0;
+      }
+      .header-inner {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo-icon {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(
+          135deg,
+          var(--accent-from),
+          var(--accent-to)
+        );
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+      }
+      .logo-text {
+        font-size: 17px;
+        font-weight: 700;
+        background: linear-gradient(
+          135deg,
+          var(--accent-from),
+          var(--accent-to)
+        );
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .header-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      button.header-btn {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+      button.header-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent-from);
+      }
+      button.header-btn.danger:hover {
+        border-color: #ef4444;
+        color: #fca5a5;
+      }
+
+      .app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      main {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        padding: 14px;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      #col-left {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        overflow: hidden;
+      }
+      #left-top {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 60%;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      #left-bottom {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+      }
+
+      #col-right {
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+      }
+
+      @media (max-width: 1100px) {
+        body {
+          overflow: auto;
+        }
+        .app {
+          height: auto;
+        }
+        main {
+          grid-template-columns: 1fr;
+          height: auto;
+          overflow: visible;
+        }
+        #col-left,
+        #col-right {
+          overflow: visible;
+        }
+        #left-top {
+          max-height: none;
+          overflow: visible;
+        }
+        #left-bottom {
+          overflow: visible;
+        }
+      }
+
+      .panel {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+      }
+      .panel.section-highlight {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(102, 153, 255, 0.25);
+      }
+      .panel-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent-from);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .panel-title .hint {
+        font-size: 10px;
+        color: var(--text-muted);
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .panel-title.collapsible {
+        cursor: pointer;
+        user-select: none;
+      }
+      .panel-title.collapsible:hover {
+        color: #fff;
+      }
+      .panel-title .caret {
+        transition: transform var(--transition);
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+      .panel.collapsed .panel-title .caret {
+        transform: rotate(-90deg);
+      }
+      .panel.collapsed .panel-body {
+        display: none;
+      }
+
+      .subgroup {
+        border-left: 2px solid var(--border);
+        padding-left: 10px;
+        margin: 4px 0 10px 4px;
+      }
+      .subgroup-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin: 6px 0 8px 0;
+      }
+
+      .panel[data-section] > .panel-title,
+      .panel[data-section] .subgroup-title {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-left: 18px;
+      }
+      .panel[data-section] > .panel-title::before,
+      .panel[data-section] .subgroup-title::before {
+        content: "▼";
+        font-size: 9px;
+        position: absolute;
+        left: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform 0.15s;
+      }
+      .panel[data-section] > .panel-title.collapsed::before,
+      .panel[data-section] .subgroup-title.collapsed::before {
+        transform: translateY(-50%) rotate(-90deg);
+      }
+      .panel.collapsed > .panel-body {
+        display: none;
+      }
+
+      .field {
+        margin-bottom: 12px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        transition: background var(--transition);
+      }
+      .field:last-child {
+        margin-bottom: 0;
+      }
+      .field.field-highlight {
+        background: var(--accent-soft);
+      }
+      .field-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+      }
+      .field-label .value {
+        color: var(--accent-from);
+        font-weight: 600;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        margin: 0;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: var(--accent);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: transform var(--transition);
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: var(--accent);
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+      }
+      .slider-ticks {
+        position: relative;
+        height: 22px;
+        margin-top: 8px;
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+      .slider-ticks span {
+        position: absolute;
+        top: 10px;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        padding-top: 0;
+        text-align: center;
+      }
+      .slider-ticks span:first-child {
+        transform: translateX(0);
+      }
+      .slider-ticks span:last-child {
+        transform: translateX(-100%);
+      }
+      .slider-ticks span::before {
+        content: "";
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--text-muted);
+      }
+      .slider-ticks span:first-child::before {
+        left: 0;
+        transform: none;
+      }
+      .slider-ticks span:last-child::before {
+        left: auto;
+        right: 0;
+        transform: none;
+      }
+
+      select,
+      input[type="text"],
+      textarea {
+        width: 100%;
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-primary);
+        padding: 8px 12px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+      select:focus,
+      input[type="text"]:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      textarea {
+        resize: vertical;
+        min-height: 60px;
+        line-height: 1.5;
+      }
+
+      #prompt-output {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        font-size: 13px;
+        line-height: 1.85;
+        color: var(--text-primary);
+        min-height: 220px;
+        max-height: 50vh;
+        overflow-y: auto;
+        word-break: break-word;
+      }
+      .prompt-part {
+        padding: 1px 3px;
+        margin: 0 -1px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background var(--transition);
+      }
+      .prompt-part:hover {
+        background: var(--highlight);
+      }
+      .prompt-part.part-highlight {
+        background: var(--highlight-strong);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+
+      .preview-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        padding: 9px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+      .btn-primary:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+      }
+      .btn-secondary {
+        background: var(--bg-primary);
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+        padding: 9px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+      .btn-secondary:hover {
+        border-color: var(--accent);
+        color: var(--accent-from);
+      }
+
+      #warnings {
+        background: var(--warn-bg);
+        border: 1px solid rgba(251, 191, 36, 0.4);
+        border-radius: 8px;
+        padding: 10px 14px;
+        display: none;
+      }
+      #warnings.visible {
+        display: block;
+      }
+      .warn-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--warn);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .warn-list {
+        list-style: none;
+        font-size: 12px;
+        color: #fde68a;
+      }
+      .warn-list li {
+        padding: 3px 0;
+      }
+      .warn-list li::before {
+        content: "⚠ ";
+        color: var(--warn);
+      }
+
+      #yaml-output {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 11.5px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+        max-height: 280px;
+        overflow: auto;
+        white-space: pre;
+      }
+
+      #toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-size: 13px;
+        z-index: 2000;
+        opacity: 0;
+        transition: all 0.3s ease;
+      }
+      #toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      .preset-grid {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .preset-btn {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+      .preset-btn:hover {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent-from);
+      }
+
+      .item-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        max-height: 240px;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      .list-item {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 7px 9px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11.5px;
+      }
+      .list-item .name {
+        flex: 1;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+      }
+      .list-item .sub {
+        font-size: 10px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
+      .list-item .meta {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+      }
+      .list-item button {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 10.5px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .list-item button:hover {
+        color: var(--accent-from);
+        border-color: var(--accent);
+      }
+      .list-item button.del:hover {
+        color: #fca5a5;
+        border-color: #ef4444;
+      }
+      .list-empty {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        font-style: italic;
+        text-align: center;
+        padding: 10px;
+      }
+      /* 履歴のプレビューは複数行表示を許可 */
+      #history-list .list-item .name {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.45;
+        word-break: break-word;
+      }
+      /* ヘッダーの保存済みドロップダウン */
+      .dropdown-wrap {
+        position: relative;
+        display: inline-block;
+      }
+      .dropdown-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        min-width: 280px;
+        max-width: 360px;
+        max-height: 60vh;
+        overflow-y: auto;
+        padding: 6px;
+        z-index: 1000;
+        display: none;
+      }
+      .dropdown-menu.open {
+        display: block;
+      }
+      .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .dropdown-item:hover {
+        background: var(--bg-tertiary);
+      }
+      .dropdown-item .meta {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .dropdown-item .name {
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dropdown-item .sub {
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+      .dropdown-item button {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 10.5px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .dropdown-item button:hover {
+        color: var(--accent-from);
+        border-color: var(--accent);
+      }
+      .dropdown-item button.del:hover {
+        color: #fca5a5;
+        border-color: #ef4444;
+      }
+      .dropdown-empty {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        font-style: italic;
+        text-align: center;
+        padding: 12px;
+      }
+      #yaml-panel,
+      #btn-export,
+      #btn-import,
+      #file-import {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="header-inner">
+          <div class="logo">
+            <div class="logo-icon">✨</div>
+            <span class="logo-text">Prompt Builder for GPT Image</span>
+          </div>
+          <div class="header-actions">
+            <div class="dropdown-wrap" id="saved-dropdown-wrap">
+              <button class="header-btn" id="btn-saved-toggle">
+                ⭐ 保存済み ▾
+              </button>
+              <div class="dropdown-menu" id="saved-dropdown"></div>
+            </div>
+            <button class="header-btn" id="btn-save">この設定を保存</button>
+            <button class="header-btn" id="btn-export">YAMLエクスポート</button>
+            <button class="header-btn" id="btn-import">YAMLインポート</button>
+            <button class="header-btn danger" id="btn-reset">リセット</button>
+            <input
+              type="file"
+              id="file-import"
+              accept=".yaml,.yml,.txt,.json"
+              style="display: none"
+            />
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <!-- 左列: 上=プロンプト+YAML、下=プリセット+保存+履歴 -->
+        <div id="col-left">
+          <div id="left-top">
+            <div id="warnings">
+              <div class="warn-title">矛盾チェック</div>
+              <ul class="warn-list" id="warn-list"></ul>
+            </div>
+
+            <div class="panel">
+              <div class="panel-title">
+                <span>📝 最終プロンプト</span>
+                <span class="hint">右にホバーで対応箇所がハイライト</span>
+              </div>
+              <div id="prompt-output"></div>
+              <div class="preview-actions">
+                <button class="btn-primary" id="btn-copy">📋 コピー</button>
+                <button class="btn-secondary" id="btn-download">
+                  💾 .txt ダウンロード
+                </button>
+              </div>
+            </div>
+
+            <div class="panel collapsed" id="yaml-panel">
+              <div class="panel-title collapsible" id="yaml-toggle">
+                <span>🗂 YAML（構造プレビュー）</span>
+                <span class="caret">▼</span>
+              </div>
+              <div class="panel-body">
+                <pre id="yaml-output"></pre>
+              </div>
+            </div>
+          </div>
+
+          <div id="left-bottom">
+            <div class="panel">
+              <div class="panel-title">📦 プリセット</div>
+              <div class="preset-grid" id="presets-bar"></div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-title">
+                🕐 履歴 <span class="hint">直近20件・自動記録</span>
+              </div>
+              <div class="item-list" id="history-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右列: 編集フィールド（入力順=人間ファースト） -->
+        <div id="col-right">
+          <!-- 被写体 -->
+          <div class="panel" data-section="subject">
+            <div class="panel-title">👤 被写体</div>
+            <div class="panel-body">
+              <div class="subgroup-title">人物</div>
+              <div class="subgroup">
+                <div class="field" data-part="subject">
+                  <div class="field-label"><span>性別・年齢層</span></div>
+                  <input
+                    type="text"
+                    id="txt-subject"
+                    value="a young Japanese woman"
+                    placeholder="a young Japanese woman"
+                  />
+                </div>
+                <div class="field" data-part="build">
+                  <div class="field-label"><span>体型・雰囲気</span></div>
+                  <input
+                    type="text"
+                    id="txt-build"
+                    placeholder="soft feminine silhouette"
+                  />
+                </div>
+              </div>
+
+              <div class="subgroup-title">髪型</div>
+              <div class="subgroup">
+                <div class="field" data-part="hair">
+                  <div class="field-label">
+                    <span>長さ</span>
+                    <span class="value" id="val-hair-length">指示なし</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-hair-length"
+                    min="0"
+                    max="4"
+                    step="1"
+                    value="0"
+                  />
+                  <div class="slider-ticks">
+                    <span>指示なし</span><span>ショート</span><span>ボブ</span
+                    ><span>ミディアム</span><span>ロング</span>
+                  </div>
+                </div>
+                <div class="field" data-part="hair">
+                  <div class="field-label"><span>色</span></div>
+                  <input type="text" id="txt-hair-color" placeholder="dark" />
+                </div>
+                <div class="field" data-part="hair">
+                  <div class="field-label"><span>アレンジ</span></div>
+                  <input
+                    type="text"
+                    id="txt-hair-arrange"
+                    placeholder="with diagonally parted bangs"
+                  />
+                </div>
+                <div class="field" data-part="hair">
+                  <div class="field-label"><span>状態</span></div>
+                  <input
+                    type="text"
+                    id="txt-hair-state"
+                    placeholder="slightly tousled"
+                  />
+                </div>
+                <div class="field" data-part="hair">
+                  <div class="field-label"><span>効果・印象</span></div>
+                  <input
+                    type="text"
+                    id="txt-hair-effect"
+                    placeholder="framing her rounded cheeks"
+                  />
+                </div>
+              </div>
+
+              <div class="subgroup-title">表情・目</div>
+              <div class="subgroup">
+                <div class="field" data-part="expression">
+                  <div class="field-label">
+                    <span>基本表情（プルダウン→フリーテキストに反映）</span>
+                  </div>
+                  <select id="sel-expression-preset">
+                    <option value="">（プルダウンで選択）</option>
+                    <option value="shy bashful">shy bashful（照れ）</option>
+                    <option value="playful">playful（茶目っ気）</option>
+                    <option value="bright laughing">
+                      bright laughing（明るい笑顔）
+                    </option>
+                    <option value="calm peaceful">
+                      calm peaceful（穏やか）
+                    </option>
+                    <option value="thoughtful">thoughtful（物思い）</option>
+                  </select>
+                </div>
+                <div class="field" data-part="expression">
+                  <div class="field-label">
+                    <span>表情（フリーテキスト）</span>
+                  </div>
+                  <input
+                    type="text"
+                    id="txt-expression"
+                    placeholder="shy bashful"
+                  />
+                </div>
+                <div class="field" data-part="expression">
+                  <div class="field-label">
+                    <span>強度</span>
+                    <span class="value" id="val-expression-strength">普通</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-expression-strength"
+                    min="0"
+                    max="2"
+                    step="1"
+                    value="1"
+                  />
+                  <div class="slider-ticks">
+                    <span>控えめ</span><span>普通</span><span>強め</span>
+                  </div>
+                </div>
+                <div class="field" data-part="mouth">
+                  <div class="field-label"><span>口元</span></div>
+                  <select id="sel-mouth">
+                    <option value="">指示なし</option>
+                    <option value="closed">閉じている</option>
+                    <option value="slightly-open">少し開いている</option>
+                    <option value="smile">微笑み</option>
+                  </select>
+                </div>
+                <div class="field" data-part="eyes">
+                  <div class="field-label">
+                    <span>目の印象</span>
+                    <span class="value" id="val-eyes">くりくり</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-eyes"
+                    min="0"
+                    max="3"
+                    step="1"
+                    value="2"
+                  />
+                  <div class="slider-ticks">
+                    <span>指示なし</span><span>普通</span><span>くりくり</span
+                    ><span>強調</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="subgroup-title">身体の細部・状態</div>
+              <div class="subgroup">
+                <div class="field" data-part="bodydetail">
+                  <div class="field-label">
+                    <span>細部の追加描写（任意）</span>
+                  </div>
+                  <input
+                    type="text"
+                    id="txt-bodydetail"
+                    placeholder="a small amount of sweat can be seen on her collarbone dimples"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 服装 -->
+          <div class="panel" data-section="clothing">
+            <div class="panel-title">👕 服装</div>
+            <div class="panel-body">
+              <div class="field" data-part="clothing">
+                <div class="field-label"><span>アイテム・デザイン</span></div>
+                <input
+                  type="text"
+                  id="txt-clothing-item"
+                  placeholder="a loose-knit sweater with a chunky texture"
+                />
+              </div>
+              <div class="field" data-part="clothing">
+                <div class="field-label"><span>色</span></div>
+                <input
+                  type="text"
+                  id="txt-clothing-color"
+                  placeholder="cream"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- 背景 -->
+          <div class="panel" data-section="location">
+            <div class="panel-title">🌍 背景</div>
+            <div class="panel-body">
+              <div class="field" data-part="location">
+                <div class="field-label"><span>場所・雰囲気</span></div>
+                <input
+                  type="text"
+                  id="txt-location"
+                  placeholder="on a sunlit beach"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- 構図 -->
+          <div class="panel" data-section="composition">
+            <div class="panel-title">
+              🎬 構図
+              <span class="hint">出力では文頭に配置されます</span>
+            </div>
+            <div class="panel-body">
+              <div class="subgroup-title">カメラ</div>
+              <div class="subgroup">
+                <div class="field" data-part="shot-angle">
+                  <div class="field-label">
+                    <span>アングル（カメラ位置と向き）</span>
+                    <span class="value" id="val-angle">ややロー</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-angle"
+                    min="0"
+                    max="4"
+                    step="1"
+                    value="3"
+                  />
+                  <div class="slider-ticks">
+                    <span>ハイ</span><span>ややハイ</span><span>アイレベル</span
+                    ><span>ややロー</span><span>ロー</span>
+                  </div>
+                </div>
+                <div class="field" data-part="shot-angle">
+                  <div class="field-label"><span>ショットタイプ</span></div>
+                  <select id="sel-shot">
+                    <option value="headshot">ヘッドショット（顔のみ）</option>
+                    <option value="bust">バストアップ（胸上）</option>
+                    <option value="chestup" selected>
+                      チェストアップ（胸まで）
+                    </option>
+                    <option value="halfbody">上半身（腰まで）</option>
+                    <option value="threequarter">
+                      スリークォーター（膝上）
+                    </option>
+                    <option value="fullbody">フルボディ（全身）</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="subgroup-title">ポーズ・視線</div>
+              <div class="subgroup">
+                <div class="field" data-part="posture">
+                  <div class="field-label"><span>姿勢</span></div>
+                  <input
+                    type="text"
+                    id="txt-posture"
+                    placeholder="standing relaxed"
+                  />
+                </div>
+                <div class="field" data-part="hands">
+                  <div class="field-label"><span>手の位置</span></div>
+                  <input
+                    type="text"
+                    id="txt-hands"
+                    placeholder="her hands clasped beneath her chin"
+                  />
+                </div>
+                <div class="field" data-part="pose">
+                  <div class="field-label">
+                    <span>ポーズの自然さ</span>
+                    <span class="value" id="val-pose">自然</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-pose"
+                    min="0"
+                    max="4"
+                    step="1"
+                    value="3"
+                  />
+                  <div class="slider-ticks">
+                    <span>作り込み</span><span>整った</span><span>普通</span
+                    ><span>自然</span><span>キャンディッド</span>
+                  </div>
+                </div>
+                <div class="field" data-part="gaze">
+                  <div class="field-label"><span>視線の方向</span></div>
+                  <select id="sel-gaze">
+                    <option value="camera" selected>カメラを見る</option>
+                    <option value="camera-soft">柔らかくカメラを見る</option>
+                    <option value="side">横を見る</option>
+                    <option value="away">遠くを見る</option>
+                    <option value="down">伏し目（下を向く）</option>
+                    <option value="up">上を見る</option>
+                  </select>
+                </div>
+                <div class="field" data-part="chin">
+                  <div class="field-label">
+                    <span>顎の引き具合（顔の向き）</span>
+                    <span class="value" id="val-chin">指示なし</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="slider-chin"
+                    min="0"
+                    max="3"
+                    step="1"
+                    value="0"
+                  />
+                  <div class="slider-ticks">
+                    <span>指示なし</span><span>自然に正対</span
+                    ><span>少し引く</span><span>しっかり引く</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ライティング -->
+          <div class="panel" data-section="lighting">
+            <div class="panel-title">💡 ライティング</div>
+            <div class="panel-body">
+              <div class="field" data-part="lighting">
+                <div class="field-label"><span>プリセット</span></div>
+                <select id="sel-lighting">
+                  <option value="">指定なし</option>
+                  <option value="midday" selected>柔らかい日中の自然光</option>
+                  <option value="morning">朝の柔らかい光</option>
+                  <option value="golden">ゴールデンアワー（夕方）</option>
+                  <option value="overcast">曇り空の拡散光</option>
+                  <option value="window">窓から差す自然光（屋内）</option>
+                  <option value="studio">スタジオライト</option>
+                </select>
+              </div>
+              <div class="field" data-part="lighting">
+                <div class="field-label"><span>光の方向</span></div>
+                <select id="sel-light-dir">
+                  <option value="">指示なし</option>
+                  <option value="front">順光</option>
+                  <option value="angle">斜光</option>
+                  <option value="back">逆光</option>
+                  <option value="side">サイド</option>
+                </select>
+              </div>
+              <div class="field" data-part="lighting">
+                <div class="field-label">
+                  <span>強度</span>
+                  <span class="value" id="val-light-strength">普通</span>
+                </div>
+                <input
+                  type="range"
+                  id="slider-light-strength"
+                  min="0"
+                  max="3"
+                  step="1"
+                  value="2"
+                />
+                <div class="slider-ticks">
+                  <span>指示なし</span><span>柔らかい</span><span>普通</span
+                  ><span>コントラスト強め</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- スタイル -->
+          <div class="panel" data-section="style">
+            <div class="panel-title">🎨 スタイル・画質</div>
+            <div class="panel-body">
+              <div class="field" data-part="style">
+                <div class="field-label"><span>スタイルのプリセット</span></div>
+                <select id="sel-style">
+                  <option value="photoreal" selected>
+                    フォトリアル（標準）
+                  </option>
+                  <option value="natural">ナチュラルスナップ</option>
+                  <option value="fashion">ファッション誌風</option>
+                  <option value="cinematic">シネマティック</option>
+                  <option value="film">フィルム風</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 自由追加 -->
+          <div class="panel" data-section="extra">
+            <div class="panel-title">➕ 自由追加（任意）</div>
+            <div class="panel-body">
+              <div class="field" data-part="extra">
+                <div class="field-label">
+                  <span>最後に追記する文（必要なら）</span>
+                </div>
+                <textarea
+                  id="txt-extra"
+                  placeholder="ここに書いた内容は最後にそのまま追加されます"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+      "use strict";
+
+      const ANGLE_MAP = [
+        {
+          ja: "ハイ",
+          en: "shot from a high angle, camera positioned above and tilted downward",
+        },
+        {
+          ja: "ややハイ",
+          en: "shot from a slightly high angle, camera tilted gently downward",
+        },
+        { ja: "アイレベル", en: "eye-level shot, camera at her eye height" },
+        {
+          ja: "ややロー",
+          en: "shot from a slightly low angle, camera positioned just below eye level and tilted gently upward toward her face",
+        },
+        {
+          ja: "ロー",
+          en: "shot from a low angle, camera positioned low and tilted upward toward her face",
+        },
+      ];
+
+      const SHOT_MAP = {
+        headshot: "Headshot",
+        bust: "Bust-up portrait shot",
+        chestup: "Chest-up portrait shot",
+        halfbody: "Half-body portrait shot",
+        threequarter: "Three-quarter portrait shot",
+        fullbody: "Full-body shot",
+      };
+
+      const POSE_MAP = [
+        { ja: "作り込み", en: "with a carefully composed pose" },
+        { ja: "整った", en: "with a graceful composed posture" },
+        { ja: "普通", en: "with a natural posture" },
+        { ja: "自然", en: "with a relaxed natural posture" },
+        {
+          ja: "キャンディッド",
+          en: "caught in a candid relaxed moment, unposed and natural",
+        },
+      ];
+
+      const GAZE_MAP = {
+        camera: "looking directly at the camera",
+        "camera-soft": "gazing softly at the camera",
+        side: "looking to the side",
+        away: "gazing into the distance",
+        down: "looking downward with a soft expression",
+        up: "looking upward",
+      };
+
+      const CHIN_MAP = [
+        { ja: "指示なし", en: "" },
+        { ja: "自然に正対", en: "her face naturally angled toward the camera" },
+        {
+          ja: "少し引く",
+          en: "her chin slightly lowered, face squared to the camera",
+        },
+        {
+          ja: "しっかり引く",
+          en: "her chin tucked, face squared to the camera with chin down and eyes up",
+        },
+      ];
+
+      // 髪型の長さ
+      const HAIR_LENGTH_MAP = [
+        { ja: "指示なし", en: "" },
+        { ja: "ショート", en: "short" },
+        { ja: "ボブ", en: "bob-length" },
+        { ja: "ミディアム", en: "medium-length" },
+        { ja: "ロング", en: "long" },
+      ];
+
+      // 表情の強度
+      const EXPR_STRENGTH_MAP = [
+        { ja: "控えめ", en: "subtle" },
+        { ja: "普通", en: "" },
+        { ja: "強め", en: "pronounced" },
+      ];
+
+      // 口元
+      const MOUTH_MAP = {
+        "": "",
+        closed: "closed",
+        "slightly-open": "slightly open",
+        smile: "softly curved into a smile",
+      };
+
+      const EYES_MAP = [
+        "",
+        "She has expressive eyes",
+        "She has large round expressive eyes with bright catchlights",
+        "She has large round doe eyes with sparkling catchlights, sweet and luminous",
+      ];
+
+      const LIGHTING_MAP = {
+        midday:
+          "Soft diffused midday sunlight creates gentle highlights on her hair and skin",
+        morning:
+          "Soft morning sunlight filters in, creating warm gentle highlights",
+        golden:
+          "Warm golden-hour sunlight illuminates the scene with a soft amber glow",
+        overcast: "Soft diffused overcast light evenly illuminates her face",
+        window: "Soft natural daylight streams through a nearby window",
+        studio: "Soft studio lighting evenly illuminates her face",
+      };
+
+      // 光の方向
+      const LIGHT_DIR_MAP = {
+        "": "",
+        front: "with light coming from the front",
+        angle: "with light coming at an angle",
+        back: "with backlight from behind her",
+        side: "with light coming from the side",
+      };
+
+      // 光の強度
+      const LIGHT_STRENGTH_MAP = [
+        { ja: "指示なし", en: "" },
+        { ja: "柔らかい", en: "soft" },
+        { ja: "普通", en: "" },
+        { ja: "コントラスト強め", en: "high-contrast" },
+      ];
+
+      const STYLE_MAP = {
+        photoreal:
+          "Photorealistic, shallow depth of field, natural color grading, authentic photography feel",
+        cinematic:
+          "Cinematic photography, shallow depth of field, dramatic color grading, film-like quality",
+        natural:
+          "Natural candid everyday snapshot, like a photo taken by a friend on a smartphone. Unposed, authentic and relatable, realistic lighting, soft natural colors, not overly polished",
+        fashion:
+          "High-fashion editorial photography, polished composition, refined color grading",
+        film: "Film photography aesthetic, subtle grain, warm analog color tones",
+      };
+
+      // プロンプト部分 → 右カラムpanelセクション
+      const PART_TO_SECTION = {
+        "shot-angle": "composition",
+        posture: "composition",
+        hands: "composition",
+        pose: "composition",
+        gaze: "composition",
+        chin: "composition",
+        subject: "subject",
+        build: "subject",
+        hair: "subject",
+        expression: "subject",
+        mouth: "subject",
+        eyes: "subject",
+        bodydetail: "subject",
+        clothing: "clothing",
+        lighting: "lighting",
+        location: "location",
+        style: "style",
+        extra: "extra",
+      };
+
+      const PRESETS = {
+        "ビーチ・ローアングル": {
+          angle: 4,
+          shot: "chestup",
+          subject: "a young Japanese woman",
+          build: "soft feminine silhouette",
+          hairLength: 1,
+          hairColor: "dark",
+          hairArrange: "",
+          hairState: "slightly tousled by the sea breeze",
+          hairEffect: "",
+          expressionPreset: "shy bashful",
+          expression: "shy bashful",
+          expressionStrength: 1,
+          mouth: "",
+          eyes: 2,
+          bodydetail: "",
+          clothingItem: "a loose-knit sweater with a chunky texture",
+          clothingColor: "cream",
+          posture: "standing",
+          hands: "",
+          pose: 3,
+          gaze: "camera-soft",
+          chin: 1,
+          lighting: "midday",
+          lightDir: "",
+          lightStrength: 1,
+          location: "on a sunlit beach",
+          style: "photoreal",
+          extra: "sharp focus on her face",
+        },
+        "カフェ・自然光": {
+          angle: 2,
+          shot: "bust",
+          subject: "a young Japanese woman",
+          build: "",
+          hairLength: 3,
+          hairColor: "brown",
+          hairArrange: "",
+          hairState: "wavy",
+          hairEffect: "",
+          expressionPreset: "calm peaceful",
+          expression: "calm peaceful",
+          expressionStrength: 1,
+          mouth: "smile",
+          eyes: 2,
+          bodydetail: "",
+          clothingItem: "a soft knit cardigan over a white blouse",
+          clothingColor: "beige",
+          posture: "sitting",
+          hands: "holding a warm coffee cup with both hands",
+          pose: 4,
+          gaze: "camera-soft",
+          chin: 0,
+          lighting: "window",
+          lightDir: "side",
+          lightStrength: 1,
+          location: "in a sunlit cafe",
+          style: "natural",
+          extra: "",
+        },
+        "公園・桜": {
+          angle: 3,
+          shot: "chestup",
+          subject: "a young Japanese woman",
+          build: "",
+          hairLength: 4,
+          hairColor: "black",
+          hairArrange: "",
+          hairState: "straight",
+          hairEffect: "",
+          expressionPreset: "bright laughing",
+          expression: "bright laughing",
+          expressionStrength: 1,
+          mouth: "",
+          eyes: 2,
+          bodydetail: "",
+          clothingItem: "a spring coat",
+          clothingColor: "pastel pink",
+          posture: "standing",
+          hands: "",
+          pose: 4,
+          gaze: "camera-soft",
+          chin: 1,
+          lighting: "morning",
+          lightDir: "",
+          lightStrength: 1,
+          location:
+            "under cherry blossoms in a park with petals gently falling around her",
+          style: "photoreal",
+          extra: "",
+        },
+      };
+
+      const STATE_KEY = "promptBuilderState_v1";
+      const SAVED_KEY = "promptBuilderSaved_v1";
+      const HISTORY_KEY = "promptBuilderHistory_v1";
+      const YAML_OPEN_KEY = "promptBuilderYamlOpen_v1";
+      const HISTORY_MAX = 20;
+      const HIGHLIGHT_HOLD_MS = 1500;
+
+      function $(id) {
+        return document.getElementById(id);
+      }
+      function val(id) {
+        return $(id) ? $(id).value : "";
+      }
+      function num(id) {
+        return +val(id);
+      }
+      function txt(id) {
+        return val(id).trim();
+      }
+
+      function getState() {
+        return {
+          // composition
+          angle: num("slider-angle"),
+          shot: val("sel-shot"),
+          posture: txt("txt-posture"),
+          hands: txt("txt-hands"),
+          pose: num("slider-pose"),
+          gaze: val("sel-gaze"),
+          chin: num("slider-chin"),
+          // subject
+          subject: txt("txt-subject"),
+          build: txt("txt-build"),
+          hairLength: num("slider-hair-length"),
+          hairColor: txt("txt-hair-color"),
+          hairArrange: txt("txt-hair-arrange"),
+          hairState: txt("txt-hair-state"),
+          hairEffect: txt("txt-hair-effect"),
+          expressionPreset: val("sel-expression-preset"),
+          expression: txt("txt-expression"),
+          expressionStrength: num("slider-expression-strength"),
+          mouth: val("sel-mouth"),
+          eyes: num("slider-eyes"),
+          bodydetail: txt("txt-bodydetail"),
+          // clothing
+          clothingItem: txt("txt-clothing-item"),
+          clothingColor: txt("txt-clothing-color"),
+          // location
+          location: txt("txt-location"),
+          // lighting
+          lighting: val("sel-lighting"),
+          lightDir: val("sel-light-dir"),
+          lightStrength: num("slider-light-strength"),
+          // style
+          style: val("sel-style"),
+          // extra
+          extra: txt("txt-extra"),
+        };
+      }
+
+      function setIfExists(id, v) {
+        const el = $(id);
+        if (!el || v == null) return;
+        el.value = v;
+      }
+
+      function setState(s) {
+        if (!s) return;
+        setIfExists("slider-angle", s.angle);
+        setIfExists("sel-shot", s.shot);
+        setIfExists("txt-posture", s.posture);
+        setIfExists("txt-hands", s.hands);
+        setIfExists("slider-pose", s.pose);
+        setIfExists("sel-gaze", s.gaze);
+        setIfExists("slider-chin", s.chin);
+        setIfExists("txt-subject", s.subject);
+        setIfExists("txt-build", s.build);
+        setIfExists("slider-hair-length", s.hairLength);
+        setIfExists("txt-hair-color", s.hairColor);
+        setIfExists("txt-hair-arrange", s.hairArrange);
+        setIfExists("txt-hair-state", s.hairState);
+        setIfExists("txt-hair-effect", s.hairEffect);
+        setIfExists("sel-expression-preset", s.expressionPreset);
+        setIfExists("txt-expression", s.expression);
+        setIfExists("slider-expression-strength", s.expressionStrength);
+        setIfExists("sel-mouth", s.mouth);
+        setIfExists("slider-eyes", s.eyes);
+        setIfExists("txt-bodydetail", s.bodydetail);
+        setIfExists("txt-clothing-item", s.clothingItem);
+        setIfExists("txt-clothing-color", s.clothingColor);
+        setIfExists("txt-location", s.location);
+        setIfExists("sel-lighting", s.lighting);
+        setIfExists("sel-light-dir", s.lightDir);
+        setIfExists("slider-light-strength", s.lightStrength);
+        setIfExists("sel-style", s.style);
+        setIfExists("txt-extra", s.extra);
+        update();
+      }
+
+      function checkWarnings(s) {
+        const warnings = [];
+        const isLow = s.angle >= 3;
+        if (isLow && s.gaze === "down") {
+          warnings.push(
+            "ローアングルで「伏し目」は矛盾しやすい構図です。視線を「カメラを見る」系に変えるのを推奨。",
+          );
+        }
+        const clothingLower = (
+          s.clothingItem +
+          " " +
+          s.clothingColor
+        ).toLowerCase();
+        if (
+          /\b(tight|fitted|low-cut|revealing|cleavage)\b/.test(clothingLower)
+        ) {
+          warnings.push(
+            "服装に「tight / low-cut / revealing」等が含まれています。安全フィルターを刺激しやすいので、「loose-knit」「modest」等への置き換えを検討してください。",
+          );
+        }
+        const buildLower = s.build.toLowerCase();
+        if (/\b(busty|curvy|voluptuous|ample|fuller)\b/.test(buildLower)) {
+          warnings.push(
+            "体型描写が直接的すぎる可能性があります。「soft feminine silhouette」「gentle figure」等の柔らかい表現を推奨。",
+          );
+        }
+        if (s.chin === 3 && s.gaze !== "camera" && s.gaze !== "camera-soft") {
+          warnings.push(
+            "「顎をしっかり引く」指示はカメラ目線と組み合わせる前提の表現です。視線方向を確認してください。",
+          );
+        }
+        // 姿勢×自然さの矛盾
+        const postureLower = s.posture.toLowerCase();
+        if (
+          s.pose === 4 &&
+          /\b(stiff|formal|composed|posed)\b/.test(postureLower)
+        ) {
+          warnings.push(
+            "「キャンディッド」と硬めの姿勢記述が矛盾している可能性があります。",
+          );
+        }
+        // 表情×口元の矛盾
+        const exprLower = s.expression.toLowerCase();
+        if (
+          s.mouth === "smile" &&
+          /\b(neutral|expressionless|sad|angry)\b/.test(exprLower)
+        ) {
+          warnings.push(
+            "口元「微笑み」と表情の記述が矛盾している可能性があります。",
+          );
+        }
+        return warnings;
+      }
+
+      // 髪型: "Her hair is [長さ], [状態] [色] hair with [アレンジ], [効果・印象]."
+      function buildHairText(s) {
+        const len = HAIR_LENGTH_MAP[s.hairLength]
+          ? HAIR_LENGTH_MAP[s.hairLength].en
+          : "";
+        const state = s.hairState;
+        const color = s.hairColor;
+        const arrange = s.hairArrange;
+        const effect = s.hairEffect;
+        // 何も指定がなければ空
+        if (!len && !state && !color && !arrange && !effect) return "";
+
+        // 先頭部分（長さ）と、その後の修飾(state color hair)の組み立て
+        // 元例: "short, slightly tousled dark hair with diagonally parted bangs, framing her rounded cheeks"
+        let head = "";
+        const stateColorParts = [state, color].filter(Boolean).join(" ");
+        if (len && stateColorParts) {
+          head = `${len}, ${stateColorParts} hair`;
+        } else if (len) {
+          head = `${len} hair`;
+        } else if (stateColorParts) {
+          head = `${stateColorParts} hair`;
+        } else {
+          head = "hair";
+        }
+
+        let result = `Her hair is ${head}`;
+        if (arrange) result += ` with ${arrange}`;
+        if (effect) result += `, ${effect}`;
+        return result;
+      }
+
+      // 表情・口元を別パーツで返す（ハイライト連動のため分割）
+      function buildExpressionParts(s) {
+        const expr = s.expression;
+        const strength = EXPR_STRENGTH_MAP[s.expressionStrength]
+          ? EXPR_STRENGTH_MAP[s.expressionStrength].en
+          : "";
+        const mouth = MOUTH_MAP[s.mouth] || "";
+        const result = [];
+
+        if (expr) {
+          const adj = strength ? `${strength} ${expr}` : expr;
+          const article = /^[aeiou]/i.test(adj) ? "an" : "a";
+          result.push({
+            part: "expression",
+            text: `She has ${article} ${adj} expression`,
+          });
+        }
+        if (mouth) {
+          if (result.length > 0) {
+            result.push({
+              part: "mouth",
+              text: `, with her mouth ${mouth}`,
+              joinWithPrev: true,
+            });
+          } else {
+            result.push({ part: "mouth", text: `Her mouth is ${mouth}` });
+          }
+        }
+        return result;
+      }
+
+      // 服装: "She wears a [color] [item]" 簡易結合
+      function buildClothingText(s) {
+        const item = s.clothingItem;
+        const color = s.clothingColor;
+        if (!item && !color) return "";
+        if (item && color) {
+          // 既に色が item に含まれている可能性は無視
+          return `She wears a ${color} ${item.replace(/^(a |an )/i, "")}`;
+        }
+        if (item)
+          return `She wears ${/^(a |an )/i.test(item) ? "" : "a "}${item}`;
+        return `She wears something ${color}`;
+      }
+
+      // 姿勢・手を別パーツで返す（ハイライト連動のため分割）
+      function buildPostureHandsParts(s) {
+        const posture = s.posture;
+        const hands = s.hands;
+        const result = [];
+
+        if (posture) {
+          result.push({ part: "posture", text: `She is ${posture}` });
+        }
+        if (hands) {
+          if (result.length > 0) {
+            result.push({
+              part: "hands",
+              text: `, with ${hands}`,
+              joinWithPrev: true,
+            });
+          } else {
+            const cleaned = hands.replace(/^her\s+hands?\s+/i, "");
+            result.push({ part: "hands", text: `Her hands are ${cleaned}` });
+          }
+        }
+        return result;
+      }
+
+      // ライティング: プリセット文 + 条件付き追記
+      function buildLightingText(s) {
+        const preset = LIGHTING_MAP[s.lighting] || "";
+        const dir = LIGHT_DIR_MAP[s.lightDir] || "";
+        const strength = LIGHT_STRENGTH_MAP[s.lightStrength]
+          ? LIGHT_STRENGTH_MAP[s.lightStrength].en
+          : "";
+        if (!preset && !dir && !strength) return "";
+
+        let result = preset;
+        const extras = [];
+        if (strength) extras.push(`the overall lighting feels ${strength}`);
+        if (dir) extras.push(dir);
+
+        if (extras.length === 0) return result;
+        if (!result) {
+          // プリセット無しでも、dir/strength だけは出す
+          return capitalize(extras.join(", "));
+        }
+        return `${result}. ${capitalize(extras.join(", "))}`;
+      }
+
+      // 身体の細部: そのまま1文（先頭大文字化、末尾ピリオドは出力時に統一）
+      function buildBodyDetailText(s) {
+        if (!s.bodydetail) return "";
+        return capitalize(s.bodydetail);
+      }
+
+      function capitalize(str) {
+        if (!str) return "";
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      }
+
+      // 出力順（構図ファースト）でパーツ配列を組み立て
+      function buildPromptParts(s) {
+        const parts = [];
+
+        // 1. ショット + アングル
+        const shotEn = SHOT_MAP[s.shot] || "";
+        const angleEn = ANGLE_MAP[s.angle] ? ANGLE_MAP[s.angle].en : "";
+        let cameraText = "";
+        if (shotEn && angleEn) cameraText = `${shotEn}, ${angleEn}`;
+        else if (shotEn) cameraText = shotEn;
+        else if (angleEn) cameraText = angleEn;
+        if (cameraText) parts.push({ part: "shot-angle", text: cameraText });
+
+        // 2. 被写体 + 場所
+        const subjText = capitalize(s.subject || "a person");
+        parts.push({ part: "subject", text: subjText });
+        if (s.location) {
+          // 先頭の余分なスペースを除去してから1個だけ付ける
+          const loc = s.location.replace(/^\s+/, "");
+          parts.push({ part: "location", text: " " + loc, joinWithPrev: true });
+        }
+
+        // 3. 視線 + 姿勢/手 + ポーズ自然さ + 顎
+        const gazeEn = GAZE_MAP[s.gaze] || "";
+        const poseEn = POSE_MAP[s.pose] ? POSE_MAP[s.pose].en : "";
+        const chinEn = CHIN_MAP[s.chin] ? CHIN_MAP[s.chin].en : "";
+
+        // 視線文を主軸として、後続をカンマで繋ぐ
+        if (gazeEn) {
+          parts.push({ part: "gaze", text: `She is ${gazeEn}` });
+          if (poseEn)
+            parts.push({
+              part: "pose",
+              text: ", " + poseEn,
+              joinWithPrev: true,
+            });
+          if (chinEn)
+            parts.push({
+              part: "chin",
+              text: ", " + chinEn,
+              joinWithPrev: true,
+            });
+        } else if (poseEn) {
+          parts.push({ part: "pose", text: "She stands " + poseEn });
+          if (chinEn)
+            parts.push({
+              part: "chin",
+              text: ", " + chinEn,
+              joinWithPrev: true,
+            });
+        } else if (chinEn) {
+          parts.push({ part: "chin", text: capitalize(chinEn) });
+        }
+
+        // 姿勢・手は独立文として（ハイライト連動のため別パーツに分割）
+        buildPostureHandsParts(s).forEach((p) => parts.push(p));
+
+        // 4. 表情・口元
+        buildExpressionParts(s).forEach((p) => parts.push(p));
+
+        // 5. 目の印象
+        const eyesEn = EYES_MAP[s.eyes];
+        if (eyesEn) parts.push({ part: "eyes", text: eyesEn });
+
+        // 6. 髪
+        const hairText = buildHairText(s);
+        if (hairText) parts.push({ part: "hair", text: hairText });
+
+        // 7. 体型
+        if (s.build)
+          parts.push({ part: "build", text: `She has a ${s.build}` });
+
+        // 8. 身体の細部・状態（服装の前）
+        const bodyDetail = buildBodyDetailText(s);
+        if (bodyDetail) parts.push({ part: "bodydetail", text: bodyDetail });
+
+        // 9. 服装
+        const clothing = buildClothingText(s);
+        if (clothing) parts.push({ part: "clothing", text: clothing });
+
+        // 10. ライティング
+        const lightText = buildLightingText(s);
+        if (lightText) parts.push({ part: "lighting", text: lightText });
+
+        // 11. スタイル
+        const styleEn = STYLE_MAP[s.style];
+        if (styleEn) parts.push({ part: "style", text: styleEn });
+
+        // 12. 自由追加
+        if (s.extra) parts.push({ part: "extra", text: s.extra });
+
+        return parts;
+      }
+
+      function partsToText(parts) {
+        let out = "";
+        parts.forEach((p) => {
+          if (p.joinWithPrev) {
+            out += p.text;
+          } else {
+            if (out && !out.endsWith(". ") && !out.endsWith(" ")) out += ". ";
+            out += p.text;
+          }
+        });
+        if (out && !out.endsWith(".")) out += ".";
+        return out;
+      }
+
+      function partsToHTML(parts) {
+        let html = "";
+        parts.forEach((p, i) => {
+          let prefix = "";
+          let text = p.text;
+          if (!p.joinWithPrev && i > 0) prefix = ". ";
+          // joinWithPrevでカンマ区切り（", xxx"）の場合のみ、カンマをspan外に出す
+          // 単純なスペース区切り（" xxx"）はspanのpaddingで間隔が出るので、span内のスペースは削除
+          if (p.joinWithPrev) {
+            const commaMatch = text.match(/^(,\s*)(.*)$/);
+            if (commaMatch) {
+              prefix = commaMatch[1];
+              text = commaMatch[2];
+            } else {
+              // " xxx" の先頭スペースは削除（span間隔はpaddingで確保される）
+              text = text.replace(/^\s+/, "");
+            }
+          }
+          html +=
+            prefix +
+            `<span class="prompt-part" data-part="${p.part}">${escapeHtml(text)}</span>`;
+        });
+        if (parts.length) html += ".";
+        return html;
+      }
+
+      function buildYAML(s) {
+        const obj = {
+          composition: {
+            shot_type: SHOT_MAP[s.shot] || "",
+            angle: ANGLE_MAP[s.angle]
+              ? ANGLE_MAP[s.angle].ja + " / " + ANGLE_MAP[s.angle].en
+              : "",
+            posture: s.posture || "(なし)",
+            hands: s.hands || "(なし)",
+            pose_naturalness: POSE_MAP[s.pose] ? POSE_MAP[s.pose].en : "",
+            gaze: GAZE_MAP[s.gaze] || "",
+            chin: (CHIN_MAP[s.chin] && CHIN_MAP[s.chin].en) || "(指示なし)",
+          },
+          subject: {
+            description: s.subject,
+            build: s.build || "(未指定)",
+            hair: {
+              length: HAIR_LENGTH_MAP[s.hairLength]
+                ? HAIR_LENGTH_MAP[s.hairLength].ja
+                : "",
+              color: s.hairColor || "(未指定)",
+              arrange: s.hairArrange || "(未指定)",
+              state: s.hairState || "(未指定)",
+              effect: s.hairEffect || "(未指定)",
+            },
+            expression: {
+              text: s.expression || "(未指定)",
+              strength: EXPR_STRENGTH_MAP[s.expressionStrength]
+                ? EXPR_STRENGTH_MAP[s.expressionStrength].ja
+                : "",
+              mouth: MOUTH_MAP[s.mouth] || "(指示なし)",
+            },
+            eyes: EYES_MAP[s.eyes] || "(指示なし)",
+            body_detail: s.bodydetail || "(なし)",
+          },
+          clothing: {
+            item: s.clothingItem || "(未指定)",
+            color: s.clothingColor || "(未指定)",
+          },
+          location: s.location || "(未指定)",
+          lighting: {
+            preset: LIGHTING_MAP[s.lighting] || "(未指定)",
+            direction: LIGHT_DIR_MAP[s.lightDir] || "(指示なし)",
+            strength: LIGHT_STRENGTH_MAP[s.lightStrength]
+              ? LIGHT_STRENGTH_MAP[s.lightStrength].ja
+              : "",
+          },
+          style: STYLE_MAP[s.style] || "",
+          extra: s.extra || "(なし)",
+        };
+        return toYAML(obj, 0);
+      }
+
+      function toYAML(obj, indent) {
+        const pad = "  ".repeat(indent);
+        let out = "";
+        for (const [key, val] of Object.entries(obj)) {
+          if (val && typeof val === "object" && !Array.isArray(val)) {
+            out += `${pad}${key}:\n${toYAML(val, indent + 1)}`;
+          } else {
+            const v = String(val).replace(/\n/g, " ");
+            out += `${pad}${key}: ${v}\n`;
+          }
+        }
+        return out;
+      }
+
+      let lastParts = [];
+
+      // ハイライト管理
+      let hoveredPart = null;
+      let activePart = null;
+      let heldPart = null;
+      let heldTimer = null;
+
+      function applyHighlight() {
+        const target = activePart || heldPart || hoveredPart;
+        document
+          .querySelectorAll(".prompt-part.part-highlight")
+          .forEach((el) => el.classList.remove("part-highlight"));
+        document
+          .querySelectorAll(".field.field-highlight")
+          .forEach((el) => el.classList.remove("field-highlight"));
+        document
+          .querySelectorAll(".panel.section-highlight")
+          .forEach((el) => el.classList.remove("section-highlight"));
+        if (!target) return;
+        document
+          .querySelectorAll(`.prompt-part[data-part="${target}"]`)
+          .forEach((el) => el.classList.add("part-highlight"));
+        document
+          .querySelectorAll(`.field[data-part="${target}"]`)
+          .forEach((el) => el.classList.add("field-highlight"));
+        const sectionKey = PART_TO_SECTION[target];
+        if (sectionKey) {
+          const sec = document.querySelector(
+            `.panel[data-section="${sectionKey}"]`,
+          );
+          if (sec) sec.classList.add("section-highlight");
+        }
+      }
+
+      function scrollPromptToPart(partKey) {
+        const el = document.querySelector(
+          `.prompt-part[data-part="${partKey}"]`,
+        );
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      function setHovered(partKey) {
+        hoveredPart = partKey;
+        if (!activePart && !heldPart) applyHighlight();
+      }
+      function clearHovered() {
+        hoveredPart = null;
+        if (!activePart && !heldPart) applyHighlight();
+      }
+      function setActive(partKey) {
+        activePart = partKey;
+        if (heldTimer) {
+          clearTimeout(heldTimer);
+          heldTimer = null;
+        }
+        heldPart = null;
+        applyHighlight();
+        scrollPromptToPart(partKey);
+      }
+      function clearActive(partKey) {
+        if (activePart !== partKey) return;
+        activePart = null;
+        heldPart = partKey;
+        if (heldTimer) clearTimeout(heldTimer);
+        heldTimer = setTimeout(() => {
+          heldPart = null;
+          heldTimer = null;
+          applyHighlight();
+        }, HIGHLIGHT_HOLD_MS);
+        applyHighlight();
+      }
+
+      function update() {
+        const s = getState();
+        // ラベル更新
+        $("val-angle").textContent = ANGLE_MAP[s.angle]
+          ? ANGLE_MAP[s.angle].ja
+          : "";
+        $("val-pose").textContent = POSE_MAP[s.pose] ? POSE_MAP[s.pose].ja : "";
+        $("val-chin").textContent = CHIN_MAP[s.chin] ? CHIN_MAP[s.chin].ja : "";
+        $("val-eyes").textContent = ["指示なし", "普通", "くりくり", "強調"][
+          s.eyes
+        ];
+        $("val-hair-length").textContent = HAIR_LENGTH_MAP[s.hairLength]
+          ? HAIR_LENGTH_MAP[s.hairLength].ja
+          : "";
+        $("val-expression-strength").textContent = EXPR_STRENGTH_MAP[
+          s.expressionStrength
+        ]
+          ? EXPR_STRENGTH_MAP[s.expressionStrength].ja
+          : "";
+        $("val-light-strength").textContent = LIGHT_STRENGTH_MAP[
+          s.lightStrength
+        ]
+          ? LIGHT_STRENGTH_MAP[s.lightStrength].ja
+          : "";
+
+        const parts = buildPromptParts(s);
+        lastParts = parts;
+        $("prompt-output").innerHTML = partsToHTML(parts);
+        $("yaml-output").textContent = buildYAML(s);
+
+        const warnings = checkWarnings(s);
+        const warnBox = $("warnings");
+        const warnList = $("warn-list");
+        if (warnings.length) {
+          warnBox.classList.add("visible");
+          warnList.innerHTML = warnings
+            .map((w) => `<li>${escapeHtml(w)}</li>`)
+            .join("");
+        } else {
+          warnBox.classList.remove("visible");
+        }
+
+        bindPromptPartHover();
+        applyHighlight();
+
+        try {
+          localStorage.setItem(STATE_KEY, JSON.stringify(s));
+        } catch (e) {}
+      }
+
+      function escapeHtml(str) {
+        const d = document.createElement("div");
+        d.textContent = str;
+        return d.innerHTML;
+      }
+
+      function bindFieldHover() {
+        document.querySelectorAll(".field[data-part]").forEach((field) => {
+          const partKey = field.dataset.part;
+          field.addEventListener("mouseenter", () => {
+            if (heldPart && heldPart !== partKey) return;
+            setHovered(partKey);
+            if (!activePart && !heldPart) scrollPromptToPart(partKey);
+          });
+          field.addEventListener("mouseleave", () => {
+            if (hoveredPart === partKey) clearHovered();
+          });
+          field.querySelectorAll("input, select, textarea").forEach((el) => {
+            el.addEventListener("focus", () => setActive(partKey));
+            el.addEventListener("blur", () => clearActive(partKey));
+            el.addEventListener("input", () => setActive(partKey));
+            el.addEventListener("change", () => setActive(partKey));
+            el.addEventListener("mousedown", () => setActive(partKey));
+          });
+        });
+      }
+
+      function bindPromptPartHover() {
+        document.querySelectorAll(".prompt-part").forEach((el) => {
+          const partKey = el.dataset.part;
+          el.addEventListener("mouseenter", () => {
+            if (heldPart && heldPart !== partKey) return;
+            setHovered(partKey);
+          });
+          el.addEventListener("mouseleave", () => {
+            if (hoveredPart === partKey) clearHovered();
+          });
+          el.addEventListener("click", () => {
+            const field = document.querySelector(
+              `.field[data-part="${partKey}"]`,
+            );
+            if (field) {
+              field.scrollIntoView({ behavior: "smooth", block: "center" });
+              setActive(partKey);
+              setTimeout(() => clearActive(partKey), 100);
+            }
+          });
+        });
+      }
+
+      function loadSavedList() {
+        try {
+          return JSON.parse(localStorage.getItem(SAVED_KEY)) || [];
+        } catch {
+          return [];
+        }
+      }
+      function writeSavedList(list) {
+        try {
+          localStorage.setItem(SAVED_KEY, JSON.stringify(list));
+        } catch {}
+      }
+      function renderSavedDropdown() {
+        const list = loadSavedList();
+        const container = $("saved-dropdown");
+        if (!list.length) {
+          container.innerHTML =
+            '<div class="dropdown-empty">保存済みなし</div>';
+          return;
+        }
+        container.innerHTML = "";
+        list.forEach((item, i) => {
+          const div = document.createElement("div");
+          div.className = "dropdown-item";
+          div.innerHTML = `
+            <div class="meta">
+              <span class="name">${escapeHtml(item.name)}</span>
+              <span class="sub">${escapeHtml(formatTs(item.savedAt))}</span>
+            </div>
+            <button data-action="load" data-index="${i}">読込</button>
+            <button class="del" data-action="del" data-index="${i}">削除</button>
+          `;
+          container.appendChild(div);
+        });
+        container.querySelectorAll("button").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const idx = +btn.dataset.index;
+            const action = btn.dataset.action;
+            const list = loadSavedList();
+            if (action === "load") {
+              setState(list[idx].state);
+              showToast(`「${list[idx].name}」を読み込みました`);
+              closeSavedDropdown();
+            } else if (action === "del") {
+              if (confirm(`「${list[idx].name}」を削除しますか？`)) {
+                list.splice(idx, 1);
+                writeSavedList(list);
+                renderSavedDropdown();
+              }
+            }
+          });
+        });
+      }
+
+      function openSavedDropdown() {
+        renderSavedDropdown();
+        $("saved-dropdown").classList.add("open");
+      }
+      function closeSavedDropdown() {
+        $("saved-dropdown").classList.remove("open");
+      }
+      function toggleSavedDropdown() {
+        const isOpen = $("saved-dropdown").classList.contains("open");
+        if (isOpen) closeSavedDropdown();
+        else openSavedDropdown();
+      }
+
+      function loadHistory() {
+        try {
+          return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+        } catch {
+          return [];
+        }
+      }
+      function writeHistory(list) {
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+        } catch {}
+      }
+      function recordHistory() {
+        const s = getState();
+        const text = partsToText(buildPromptParts(s));
+        const preview = text.slice(0, 100) + (text.length > 100 ? "…" : "");
+        const now = Date.now();
+        const entry = { state: s, preview, tsStr: formatTs(now), ts: now };
+        const list = loadHistory();
+        list.unshift(entry);
+        if (list.length > HISTORY_MAX) list.length = HISTORY_MAX;
+        writeHistory(list);
+        renderHistory();
+      }
+      function renderHistory() {
+        const list = loadHistory();
+        const container = $("history-list");
+        if (!list.length) {
+          container.innerHTML =
+            '<div class="list-empty">履歴はまだありません<br>（コピー/DLで自動記録）</div>';
+          return;
+        }
+        container.innerHTML = "";
+        list.forEach((item, i) => {
+          const div = document.createElement("div");
+          div.className = "list-item";
+          div.innerHTML = `
+            <div class="meta">
+              <span class="name">${escapeHtml(item.preview)}</span>
+              <span class="sub">${escapeHtml(item.tsStr)}</span>
+            </div>
+            <button data-action="load" data-index="${i}">読込</button>
+          `;
+          container.appendChild(div);
+        });
+        container.querySelectorAll("button").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const idx = +btn.dataset.index;
+            const list = loadHistory();
+            setState(list[idx].state);
+            showToast(`履歴を読み込みました`);
+          });
+        });
+      }
+
+      function formatTs(ms) {
+        if (!ms) return "";
+        const d = new Date(ms);
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+
+      function renderPresetsBar() {
+        const bar = $("presets-bar");
+        bar.innerHTML = "";
+        Object.keys(PRESETS).forEach((name) => {
+          const btn = document.createElement("button");
+          btn.className = "preset-btn";
+          btn.textContent = name;
+          btn.addEventListener("click", () => {
+            setState(PRESETS[name]);
+            showToast(`プリセット「${name}」を適用`);
+          });
+          bar.appendChild(btn);
+        });
+      }
+
+      let toastTimer = null;
+      function showToast(msg) {
+        const toast = $("toast");
+        toast.textContent = msg;
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+      }
+
+      function bindEvents() {
+        const inputIds = [
+          "slider-angle",
+          "sel-shot",
+          "txt-posture",
+          "txt-hands",
+          "slider-pose",
+          "sel-gaze",
+          "slider-chin",
+          "txt-subject",
+          "txt-build",
+          "slider-hair-length",
+          "txt-hair-color",
+          "txt-hair-arrange",
+          "txt-hair-state",
+          "txt-hair-effect",
+          "sel-expression-preset",
+          "txt-expression",
+          "slider-expression-strength",
+          "sel-mouth",
+          "slider-eyes",
+          "txt-bodydetail",
+          "txt-clothing-item",
+          "txt-clothing-color",
+          "txt-location",
+          "sel-lighting",
+          "sel-light-dir",
+          "slider-light-strength",
+          "sel-style",
+          "txt-extra",
+        ];
+        inputIds.forEach((id) => {
+          const el = $(id);
+          if (!el) return;
+          el.addEventListener("input", () => update());
+        });
+
+        // 表情プルダウン→フリーテキスト自動反映
+        $("sel-expression-preset").addEventListener("change", (e) => {
+          const v = e.target.value;
+          if (v) $("txt-expression").value = v;
+          update();
+        });
+
+        $("btn-copy").addEventListener("click", async () => {
+          const text = partsToText(lastParts);
+          try {
+            await navigator.clipboard.writeText(text);
+            showToast("プロンプトをコピーしました");
+          } catch {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+            showToast("プロンプトをコピーしました");
+          }
+          recordHistory();
+        });
+
+        $("btn-download").addEventListener("click", () => {
+          const text = partsToText(lastParts);
+          const yaml = buildYAML(getState());
+          const full = text + "\n\n---\n# YAML structure\n" + yaml;
+          const ts = nowStamp();
+          downloadText(`genspark_${ts}_prompt.txt`, full);
+          showToast(`genspark_${ts}_prompt.txt を保存しました`);
+          recordHistory();
+        });
+
+        $("btn-save").addEventListener("click", () => {
+          const name = window.prompt(
+            "この設定の名前を入力してください",
+            "設定",
+          );
+          if (!name) return;
+          const list = loadSavedList();
+          list.unshift({ name, state: getState(), savedAt: Date.now() });
+          writeSavedList(list);
+          renderSavedDropdown(); // ← 変更
+          showToast(`「${name}」を保存しました`);
+        });
+
+        // 保存済みドロップダウン
+        $("btn-saved-toggle").addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleSavedDropdown();
+        });
+        document.addEventListener("click", (e) => {
+          const wrap = $("saved-dropdown-wrap");
+          if (wrap && !wrap.contains(e.target)) closeSavedDropdown();
+        });
+
+        $("btn-export").addEventListener("click", () => {
+          const yaml = buildYAML(getState());
+          const ts = nowStamp();
+          downloadText(`prompt_settings_${ts}.yaml`, yaml);
+          showToast("YAMLをダウンロードしました");
+        });
+
+        $("btn-import").addEventListener("click", () => {
+          $("file-import").click();
+        });
+        $("file-import").addEventListener("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const text = await file.text();
+          try {
+            const obj = JSON.parse(text);
+            setState(obj);
+            showToast("インポートしました");
+          } catch {
+            showToast("※ YAMLの直接読み込みは未対応。JSON形式でどうぞ");
+          }
+          e.target.value = "";
+        });
+
+        $("btn-reset").addEventListener("click", () => {
+          if (
+            !confirm(
+              "全項目を初期値に戻しますか？（保存リストと履歴は残ります）",
+            )
+          )
+            return;
+          localStorage.removeItem(STATE_KEY);
+          location.reload();
+        });
+
+        $("yaml-toggle").addEventListener("click", () => {
+          const panel = $("yaml-panel");
+          panel.classList.toggle("collapsed");
+          try {
+            localStorage.setItem(
+              YAML_OPEN_KEY,
+              panel.classList.contains("collapsed") ? "0" : "1",
+            );
+          } catch {}
+        });
+      }
+
+      function nowStamp() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+      }
+
+      function downloadText(filename, text) {
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      function init() {
+        const COLLAPSE_KEY = "promptBuilder_collapsed_v1";
+        function loadCollapsed() {
+          try {
+            return JSON.parse(localStorage.getItem(COLLAPSE_KEY)) || {};
+          } catch {
+            return {};
+          }
+        }
+        function saveCollapsed(state) {
+          localStorage.setItem(COLLAPSE_KEY, JSON.stringify(state));
+        }
+        function setupCollapse() {
+          const state = loadCollapsed();
+          document
+            .querySelectorAll(
+              ".panel[data-section] > .panel-title, .panel[data-section] .subgroup-title",
+            )
+            .forEach((title) => {
+              const sectionKey = title.closest(".panel")?.dataset.section || "";
+              const isPanel = title.classList.contains("panel-title");
+              const key = isPanel
+                ? `panel:${sectionKey}`
+                : `sub:${sectionKey}:${title.textContent.trim()}`;
+              // 畳む対象を決定
+              const target = isPanel
+                ? title.parentElement.querySelector(":scope > .panel-body")
+                : getSubgroupTargets(title);
+              if (state[key]) {
+                title.classList.add("collapsed");
+                applyCollapse(target, true);
+              }
+              title.addEventListener("click", () => {
+                const collapsed = title.classList.toggle("collapsed");
+                applyCollapse(target, collapsed);
+                const s = loadCollapsed();
+                if (collapsed) s[key] = true;
+                else delete s[key];
+                saveCollapsed(s);
+              });
+            });
+        }
+        function getSubgroupTargets(title) {
+          // タイトルの次の兄弟から、次のsubgroup-titleが出るまでを集める
+          const targets = [];
+          let el = title.nextElementSibling;
+          while (el && !el.classList.contains("subgroup-title")) {
+            targets.push(el);
+            el = el.nextElementSibling;
+          }
+          return targets;
+        }
+        function applyCollapse(target, collapsed) {
+          if (!target) return;
+          if (Array.isArray(target)) {
+            target.forEach(
+              (el) => (el.style.display = collapsed ? "none" : ""),
+            );
+          } else {
+            target.style.display = collapsed ? "none" : "";
+          }
+        }
+        setupCollapse();
+
+        renderPresetsBar();
+        // スライダー目盛りラベルの位置を等分配置
+        document.querySelectorAll(".slider-ticks").forEach((ticks) => {
+          const spans = ticks.querySelectorAll("span");
+          const n = spans.length;
+          if (n < 2) return;
+          spans.forEach((span, i) => {
+            span.style.left = `${(i / (n - 1)) * 100}%`;
+          });
+        });
+
+        bindEvents();
+        bindFieldHover();
+        try {
+          const raw = localStorage.getItem(STATE_KEY);
+          if (raw) setState(JSON.parse(raw));
+          else update();
+        } catch {
+          update();
+        }
+        renderSavedDropdown(); // ← 変更
+        renderHistory();
+        try {
+          const open = localStorage.getItem(YAML_OPEN_KEY);
+          if (open === "1") {
+            $("yaml-panel").classList.remove("collapsed");
+          }
+        } catch {}
+      }
+      init();
+    </script>
+  </body>
+</html>

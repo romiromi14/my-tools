@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Prompt Translator</title>
+    <style>
+      body {
+        font-family:
+          "Segoe UI", "Helvetica Neue", "Hiragino Sans", "Yu Gothic",
+          "Noto Sans JP", sans-serif;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 16px;
+        background: #1e2228;
+        color: #e8ecf0;
+      }
+      h2 {
+        color: #e8ecf0;
+        font-weight: normal;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        background: #2a2f37;
+        color: #e8ecf0;
+        border: 1px solid #3a3f47;
+        border-radius: 4px;
+        line-height: 1.5;
+      }
+      textarea:focus {
+        outline: none;
+        border-color: #5a8fb5;
+      }
+      button {
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        margin-right: 8px;
+        background: #3a4250;
+        color: #e8ecf0;
+        border: 1px solid #4a5260;
+        border-radius: 4px;
+      }
+      button:hover {
+        background: #455060;
+      }
+      .row {
+        padding: 14px 0;
+      }
+      .row + .row {
+        border-top: 1px solid #2c3138;
+      }
+      .en-line {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .en {
+        color: #e8ecf0;
+        font-size: 22px;
+        line-height: 1.65;
+        flex: 1;
+      }
+      .copy-btn {
+        flex-shrink: 0;
+        padding: 3px 12px;
+        font-size: 18px;
+        margin: 0;
+        background: #2f3640;
+        border: 1px solid #4a5260;
+        color: #b8c4d0;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background: #3a4250;
+        color: #e8ecf0;
+      }
+      .copy-btn.copied {
+        background: #3a5a45;
+        border-color: #4a7055;
+        color: #c8e8d0;
+      }
+      .ja {
+        color: #8fb8cc;
+        margin-top: 8px;
+        padding-left: 10px;
+        border-left: 2px solid #3a4a55;
+        font-size: 20px;
+        line-height: 1.7;
+      }
+      #output {
+        margin-top: 20px;
+      }
+      #status {
+        color: #888;
+        margin-left: 8px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>プロンプト 英日対訳ツール</h2>
+    <textarea
+      id="input"
+      rows="8"
+      placeholder="自然言語型プロンプトを貼り付け（自動翻訳）"
+    ></textarea>
+    <div style="margin-top: 8px">
+      <button onclick="run()">分割して翻訳</button>
+      <button onclick="copyAll()">対訳をコピー</button>
+      <span id="status"></span>
+    </div>
+    <div id="output"></div>
+
+    <script>
+      function splitSentences(text) {
+        text = text.trim();
+        const abbr = [
+          "e.g.",
+          "i.e.",
+          "etc.",
+          "Mr.",
+          "Mrs.",
+          "Ms.",
+          "Dr.",
+          "St.",
+          "vs.",
+          "cf.",
+        ];
+        abbr.forEach((a, i) => (text = text.split(a).join(`__ABBR${i}__`)));
+        text = text.replace(/(\d)\.(\d)/g, "$1__DOT__$2");
+
+        let parts = text.split(/(?<=[.!?])\s+/);
+
+        parts = parts
+          .map((p) => {
+            abbr.forEach((a, i) => (p = p.split(`__ABBR${i}__`).join(a)));
+            return p.split("__DOT__").join(".").trim();
+          })
+          .filter((p) => p);
+
+        return parts;
+      }
+
+      async function translate(text) {
+        const url =
+          "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=" +
+          encodeURIComponent(text);
+        const res = await fetch(url);
+        const data = await res.json();
+        return data[0].map((seg) => seg[0]).join("");
+      }
+
+      function copyOne(btn, text) {
+        navigator.clipboard.writeText(text).then(() => {
+          const original = btn.textContent;
+          btn.textContent = "✓";
+          btn.classList.add("copied");
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.classList.remove("copied");
+          }, 1000);
+        });
+      }
+
+      async function run() {
+        const text = document.getElementById("input").value;
+        const out = document.getElementById("output");
+        const status = document.getElementById("status");
+        out.innerHTML = "";
+        const sentences = splitSentences(text);
+        if (!sentences.length) {
+          status.textContent = "入力なし";
+          return;
+        }
+
+        for (let i = 0; i < sentences.length; i++) {
+          status.textContent = `翻訳中 ${i + 1}/${sentences.length}...`;
+          const row = document.createElement("div");
+          row.className = "row";
+
+          const enLine = document.createElement("div");
+          enLine.className = "en-line";
+
+          const en = document.createElement("div");
+          en.className = "en";
+          en.textContent = sentences[i];
+
+          const btn = document.createElement("button");
+          btn.className = "copy-btn";
+          btn.textContent = "copy";
+          btn.onclick = () => copyOne(btn, sentences[i]);
+
+          enLine.appendChild(en);
+          enLine.appendChild(btn);
+
+          const ja = document.createElement("div");
+          ja.className = "ja";
+          ja.textContent = "翻訳中...";
+
+          row.appendChild(enLine);
+          row.appendChild(ja);
+          out.appendChild(row);
+
+          try {
+            ja.textContent = await translate(sentences[i]);
+          } catch (e) {
+            ja.textContent = "[翻訳失敗]";
+          }
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        status.textContent = "完了";
+      }
+
+      function copyAll() {
+        const rows = document.querySelectorAll("#output .row");
+        const lines = [];
+        rows.forEach((r) => {
+          lines.push(r.querySelector(".en").textContent);
+          lines.push(r.querySelector(".ja").textContent);
+          lines.push("");
+        });
+        navigator.clipboard.writeText(lines.join("\n"));
+        document.getElementById("status").textContent = "コピーしました";
+      }
+
+      document.getElementById("input").addEventListener("paste", (e) => {
+        setTimeout(run, 0);
+      });
+    </script>
+  </body>
+</html>
