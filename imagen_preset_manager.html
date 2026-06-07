@@ -1303,7 +1303,6 @@
             ${(preset.tags || []).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
           </div>
           <h3>${escapeHtml(preset.name)}</h3>
-          <button type="button" class="copy-btn copy-btn--large copy-command-btn" id="detailCopyBtn" data-preset-name="${escapeHtml(preset.name)}">📋 生成コマンドをコピー</button>
           <p>${escapeHtml(preset.description)}</p>
         </div>
         <div class="markdown">${renderMarkdown(preset.content)}</div>
@@ -1318,9 +1317,6 @@
           preset.thumbnail,
         );
 
-        document
-          .getElementById("detailCopyBtn")
-          .addEventListener("click", handleCopyButtonClick);
         document
           .getElementById("editFromDetailBtn")
           .addEventListener("click", () => populateForm(preset));
@@ -1346,6 +1342,7 @@
             updateFilterOptions();
             render();
             populateForm(copy);
+            window.scrollTo({ top: 0, behavior: "smooth" });
             showStatus("プリセットを複製しました。");
           });
       }
@@ -1362,7 +1359,6 @@
         updateThumbnailPreview();
         clearErrors();
         els.deleteBtn.disabled = !preset?.id;
-        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function clearForm() {
@@ -1568,6 +1564,7 @@
         updateFilterOptions();
         render();
         populateForm(getPresetById(data.id));
+        window.scrollTo({ top: 0, behavior: "smooth" });
         showStatus(
           isEdit ? "プリセットを更新しました。" : "プリセットを追加しました。",
         );
