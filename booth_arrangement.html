@@ -20,13 +20,11 @@
         --seat-used: #dbeafe;
         --seat-disabled: #fecaca;
       }
-
       * {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
       }
-
       body {
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
@@ -36,21 +34,18 @@
         line-height: 1.6;
         padding: 20px;
       }
-
       h1 {
         text-align: center;
         font-size: 1.5rem;
         margin-bottom: 8px;
         color: var(--primary);
       }
-
       .subtitle {
         text-align: center;
         color: var(--text-light);
         font-size: 0.85rem;
         margin-bottom: 24px;
       }
-
       .section {
         background: var(--card);
         border-radius: 12px;
@@ -58,14 +53,12 @@
         margin-bottom: 20px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       }
-
       .section h2 {
         font-size: 1.1rem;
         margin-bottom: 12px;
         padding-bottom: 8px;
         border-bottom: 2px solid var(--border);
       }
-
       .constraint-row {
         display: flex;
         align-items: center;
@@ -73,31 +66,26 @@
         margin-bottom: 10px;
         flex-wrap: wrap;
       }
-
       .constraint-row label {
         min-width: 280px;
         font-size: 0.9rem;
       }
-
       .constraint-row input[type="range"] {
         flex: 1;
         min-width: 120px;
       }
-
       .constraint-row .val {
         width: 28px;
         text-align: right;
         font-weight: bold;
         font-size: 0.9rem;
       }
-
       .disabled-seats-grid {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
         margin-top: 8px;
       }
-
       .disabled-seats-grid label {
         display: flex;
         align-items: center;
@@ -109,22 +97,18 @@
         cursor: pointer;
         user-select: none;
       }
-
       .disabled-seats-grid label:has(input:checked) {
         background: var(--seat-disabled);
         text-decoration: line-through;
       }
-
       .schedule-table-wrap {
         overflow-x: auto;
       }
-
       .schedule-table {
         border-collapse: collapse;
         width: 100%;
         min-width: 500px;
       }
-
       .schedule-table th,
       .schedule-table td {
         border: 1px solid var(--border);
@@ -132,7 +116,6 @@
         text-align: center;
         font-size: 0.85rem;
       }
-
       .schedule-table th {
         background: #eef2ff;
         position: sticky;
@@ -140,13 +123,11 @@
         z-index: 2;
         white-space: nowrap;
       }
-
       .schedule-table th:first-child {
         position: sticky;
         left: 0;
         z-index: 3;
       }
-
       .schedule-table td:first-child {
         position: sticky;
         left: 0;
@@ -155,7 +136,6 @@
         font-weight: bold;
         white-space: nowrap;
       }
-
       .schedule-table td input[type="text"] {
         width: 100%;
         border: none;
@@ -165,16 +145,13 @@
         outline: none;
         padding: 2px;
       }
-
       .schedule-table td input[type="text"]:focus {
         background: #fffbeb;
         border-radius: 4px;
       }
-
       .quick-input {
         margin-bottom: 12px;
       }
-
       .quick-input textarea {
         width: 100%;
         min-height: 80px;
@@ -185,20 +162,17 @@
         border-radius: 8px;
         resize: vertical;
       }
-
       .quick-input p {
         font-size: 0.8rem;
         color: var(--text-light);
         margin-top: 4px;
       }
-
       .btn-group {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
         margin-top: 16px;
       }
-
       .btn {
         padding: 10px 24px;
         border: none;
@@ -208,45 +182,77 @@
         font-weight: 600;
         transition: background 0.2s;
       }
-
       .btn-primary {
         background: var(--primary);
         color: #fff;
       }
-
       .btn-primary:hover {
         background: var(--primary-hover);
       }
-
       .btn-secondary {
         background: var(--border);
         color: var(--text);
       }
-
       .btn-secondary:hover {
         background: #cbd5e1;
       }
 
-      .result-slot-nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-bottom: 12px;
+      /* Slider area */
+      .slot-slider-wrap {
+        margin-bottom: 16px;
       }
-
-      .result-slot-nav button {
-        padding: 4px 10px;
+      .slot-slider-label {
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.05rem;
+        margin-bottom: 8px;
+        color: var(--primary);
+      }
+      .slot-slider-label .slot-sub {
         font-size: 0.8rem;
+        font-weight: 400;
+        color: var(--text-light);
+        margin-left: 6px;
+      }
+      .slot-slider-track {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .slot-slider-track input[type="range"] {
+        flex: 1;
+      }
+      .slot-slider-track .arrow-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
         border: 1px solid var(--border);
         background: var(--card);
-        border-radius: 6px;
+        font-size: 1.1rem;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
       }
-
-      .result-slot-nav button.active {
-        background: var(--primary);
-        color: #fff;
-        border-color: var(--primary);
+      .slot-slider-track .arrow-btn:hover {
+        background: #eef2ff;
+      }
+      .slot-slider-ticks {
+        display: flex;
+        justify-content: space-between;
+        padding: 0 46px;
+        margin-top: 2px;
+      }
+      .slot-slider-ticks span {
+        font-size: 0.65rem;
+        color: var(--text-light);
+        width: 20px;
+        text-align: center;
+      }
+      .slot-slider-ticks span.has-students {
+        color: var(--primary);
+        font-weight: 700;
       }
 
       .seat-map {
@@ -255,7 +261,6 @@
         max-width: 480px;
         margin: 0 auto 16px;
       }
-
       .seat-cell {
         aspect-ratio: 1.6;
         display: flex;
@@ -268,42 +273,41 @@
         border: 2px solid transparent;
         transition: all 0.2s;
       }
-
       .seat-cell.empty-space {
         visibility: hidden;
       }
-
       .seat-cell.disabled {
         background: #fee2e2;
         color: #b91c1c;
         border-color: #fca5a5;
       }
-
       .seat-cell.vacant {
         background: var(--seat-empty);
         color: var(--text-light);
         border-color: var(--border);
       }
-
       .seat-cell.occupied {
         background: var(--seat-used);
         color: var(--primary);
         border-color: #93c5fd;
       }
-
       .seat-cell .seat-num {
         font-size: 0.7rem;
         color: var(--text-light);
       }
-
       .seat-cell .seat-student {
         font-size: 1rem;
         font-weight: 700;
       }
-
       .seat-cell.has-violation {
         border-color: var(--warning);
         background: #fef9c3;
+      }
+      .no-students-msg {
+        text-align: center;
+        color: var(--text-light);
+        font-size: 0.9rem;
+        padding: 20px 0;
       }
 
       .result-table {
@@ -312,53 +316,50 @@
         margin-top: 16px;
         font-size: 0.85rem;
       }
-
       .result-table th,
       .result-table td {
         border: 1px solid var(--border);
         padding: 5px 8px;
         text-align: center;
       }
-
       .result-table th {
         background: #eef2ff;
         white-space: nowrap;
       }
-
+      .result-table tr.empty-row td {
+        color: var(--text-light);
+        font-style: italic;
+      }
       .score-bar {
         display: flex;
         align-items: center;
         gap: 12px;
         margin-bottom: 12px;
+        flex-wrap: wrap;
       }
-
       .score-bar .score-label {
         font-weight: 600;
       }
-
       .score-bar .score-detail {
         font-size: 0.85rem;
         color: var(--text-light);
       }
-
       .violation-list {
         font-size: 0.8rem;
         color: var(--danger);
         margin-top: 4px;
+        margin-bottom: 12px;
       }
-
       .violation-list li {
         margin-left: 16px;
         margin-bottom: 2px;
       }
-
       .tab-bar {
         display: flex;
         gap: 0;
         margin-bottom: 16px;
         border-bottom: 2px solid var(--border);
       }
-
       .tab-bar button {
         padding: 8px 20px;
         border: none;
@@ -370,24 +371,20 @@
         color: var(--text-light);
         font-weight: 500;
       }
-
       .tab-bar button.active {
         color: var(--primary);
         border-bottom-color: var(--primary);
         font-weight: 700;
       }
-
       .tab-content {
         display: none;
       }
       .tab-content.active {
         display: block;
       }
-
       .hidden {
         display: none !important;
       }
-
       @media (max-width: 640px) {
         body {
           padding: 10px;
@@ -407,51 +404,42 @@
       時間帯ごとの生徒を入力 → 自動で良い感じに座席を振り分けます
     </p>
 
-    <!-- 制約設定 -->
     <div class="section">
       <h2>⚙️ 制約設定</h2>
-
       <div class="constraint-row">
         <label>同時間帯で隣接座席に配置しない</label>
         <input type="range" id="w-adjacent" min="0" max="10" value="5" />
         <span class="val" id="w-adjacent-val">5</span>
       </div>
-
       <div class="constraint-row">
         <label>連続時間帯で同じ座席に別の生徒を置かない</label>
         <input type="range" id="w-consecutive" min="0" max="10" value="3" />
         <span class="val" id="w-consecutive-val">3</span>
       </div>
-
       <div class="constraint-row">
         <label>連続時間帯の同一生徒は同じ座席を維持する</label>
         <input type="range" id="w-samestudent" min="0" max="10" value="8" />
         <span class="val" id="w-samestudent-val">8</span>
       </div>
-
       <div class="constraint-row">
         <label>できるだけ散らばって配置する</label>
         <input type="range" id="w-spread" min="0" max="10" value="2" />
         <span class="val" id="w-spread-val">2</span>
       </div>
-
       <h3 style="font-size: 0.9rem; margin-top: 16px; margin-bottom: 6px">
         使用禁止座席
       </h3>
       <div class="disabled-seats-grid" id="disabled-seats"></div>
     </div>
 
-    <!-- 生徒入力 -->
     <div class="section">
       <h2>📝 生徒スケジュール入力</h2>
-
       <div class="tab-bar">
         <button class="active" onclick="switchInputTab('quick')">
           まとめて入力
         </button>
         <button onclick="switchInputTab('table')">テーブル入力</button>
       </div>
-
       <div id="tab-quick" class="tab-content active">
         <div class="quick-input">
           <textarea
@@ -473,7 +461,6 @@
           </div>
         </div>
       </div>
-
       <div id="tab-table" class="tab-content">
         <div class="schedule-table-wrap">
           <table class="schedule-table" id="schedule-table"></table>
@@ -484,7 +471,6 @@
       </div>
     </div>
 
-    <!-- 実行 -->
     <div class="section" style="text-align: center">
       <div class="btn-group" style="justify-content: center">
         <button class="btn btn-primary" onclick="runOptimize()">
@@ -494,14 +480,26 @@
       </div>
     </div>
 
-    <!-- 結果 -->
     <div class="section hidden" id="result-section">
       <h2>📊 配置結果</h2>
       <div class="score-bar" id="score-bar"></div>
       <ul class="violation-list" id="violation-list"></ul>
 
-      <div class="result-slot-nav" id="slot-nav"></div>
-      <div class="seat-map" id="seat-map"></div>
+      <div class="slot-slider-wrap" id="slot-slider-wrap">
+        <div class="slot-slider-label" id="slot-slider-label"></div>
+        <div class="slot-slider-track">
+          <button class="arrow-btn" id="slot-prev" onclick="slotStep(-1)">
+            ◀
+          </button>
+          <input type="range" id="slot-slider" min="0" max="0" value="0" />
+          <button class="arrow-btn" id="slot-next" onclick="slotStep(1)">
+            ▶
+          </button>
+        </div>
+        <div class="slot-slider-ticks" id="slot-slider-ticks"></div>
+      </div>
+
+      <div id="seat-map-area"></div>
 
       <h3 style="font-size: 0.95rem; margin-top: 20px; margin-bottom: 8px">
         一覧表
@@ -520,13 +518,13 @@
         let h = 11,
           m = 0;
         for (let i = 0; i < TOTAL_SLOTS; i++) {
-          const sh = String(h).padStart(2, "0");
-          const sm = String(m).padStart(2, "0");
+          const sh = String(h).padStart(2, "0"),
+            sm = String(m).padStart(2, "0");
           let eh = h,
             em = m + 50;
           if (em >= 60) {
             eh += Math.floor(em / 60);
-            em = em % 60;
+            em %= 60;
           }
           TIME_LABELS.push(
             `${sh}:${sm}-${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
@@ -534,7 +532,7 @@
           m += 50;
           if (m >= 60) {
             h += Math.floor(m / 60);
-            m = m % 60;
+            m %= 60;
           }
         }
       }
@@ -573,7 +571,6 @@
       addAdj(7, 11);
       addAdj(10, 11);
       addAdj(10, 13);
-
       function isAdjacent(a, b) {
         return ADJ_SET.has(`${Math.min(a, b)}-${Math.max(a, b)}`);
       }
@@ -597,6 +594,7 @@
       let disabledSeats = new Set();
       let schedule = {};
       let result = null;
+      let visibleSlots = []; // スライダー用の表示対象コマインデックス
 
       function init() {
         const dsc = document.getElementById("disabled-seats");
@@ -607,13 +605,18 @@
         }
         ["w-adjacent", "w-consecutive", "w-samestudent", "w-spread"].forEach(
           (id) => {
-            const sl = document.getElementById(id);
-            const v = document.getElementById(id + "-val");
+            const sl = document.getElementById(id),
+              v = document.getElementById(id + "-val");
             sl.addEventListener("input", () => {
               v.textContent = sl.value;
             });
           },
         );
+        document
+          .getElementById("slot-slider")
+          .addEventListener("input", function () {
+            showSlotMap(visibleSlots[parseInt(this.value)]);
+          });
         buildScheduleTable();
       }
 
@@ -623,8 +626,8 @@
       }
 
       function buildScheduleTable() {
-        const mx = 13;
-        const t = document.getElementById("schedule-table");
+        const mx = 13,
+          t = document.getElementById("schedule-table");
         let h = "<thead><tr><th>コマ</th>";
         for (let j = 1; j <= mx; j++) h += `<th>生徒${j}</th>`;
         h += "</tr></thead><tbody>";
@@ -634,8 +637,7 @@
             h += `<td><input type="text" data-slot="${i}" data-idx="${j}"></td>`;
           h += "</tr>";
         }
-        h += "</tbody>";
-        t.innerHTML = h;
+        t.innerHTML = h + "</tbody>";
       }
 
       function switchInputTab(tab) {
@@ -663,22 +665,21 @@
         document
           .querySelectorAll("#schedule-table input[type=text]")
           .forEach((inp) => (inp.value = ""));
-        const lines = text.split("\n").filter((l) => l.trim());
-        for (const line of lines) {
+        for (const line of text.split("\n").filter((l) => l.trim())) {
           const match = line.match(/^\s*(\d+)\s*[:：]\s*(.+)$/);
           if (!match) continue;
           const slot = parseInt(match[1]) - 1;
           if (slot < 0 || slot >= TOTAL_SLOTS) continue;
-          const students = match[2]
+          match[2]
             .split(/[,、，\s]+/)
             .map((s) => s.trim())
-            .filter((s) => s);
-          students.forEach((name, idx) => {
-            const inp = document.querySelector(
-              `input[data-slot="${slot}"][data-idx="${idx}"]`,
-            );
-            if (inp) inp.value = name;
-          });
+            .filter((s) => s)
+            .forEach((name, idx) => {
+              const inp = document.querySelector(
+                `input[data-slot="${slot}"][data-idx="${idx}"]`,
+              );
+              if (inp) inp.value = name;
+            });
         }
         switchInputTab("table");
       }
@@ -733,16 +734,13 @@
       function calcPenalty(assignment, weights) {
         let penalty = 0;
         const violations = [];
-
         for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
           const a = assignment[slot];
           if (!a) continue;
-          const students = Object.keys(a);
-          const seats = Object.values(a);
-
-          // 隣接ペナルティ
+          const students = Object.keys(a),
+            seats = Object.values(a);
           if (weights.adjacent > 0) {
-            for (let i = 0; i < seats.length; i++) {
+            for (let i = 0; i < seats.length; i++)
               for (let j = i + 1; j < seats.length; j++) {
                 if (isAdjacent(seats[i], seats[j])) {
                   penalty += weights.adjacent;
@@ -751,69 +749,53 @@
                   );
                 }
               }
-            }
           }
-
-          // 連続コマ・別人が同じ席ペナルティ
           if (weights.consecutive > 0 && slot > 0 && assignment[slot - 1]) {
             const prev = assignment[slot - 1];
-            for (const [stu, seat] of Object.entries(a)) {
-              for (const [prevStu, prevSeat] of Object.entries(prev)) {
+            for (const [stu, seat] of Object.entries(a))
+              for (const [prevStu, prevSeat] of Object.entries(prev))
                 if (prevStu !== stu && prevSeat === seat) {
                   penalty += weights.consecutive;
                   violations.push(
-                    `コマ${slot}: ${prevStu}(席${prevSeat}) → コマ${slot + 1}: ${stu}(席${seat}) 連続別人同席`,
+                    `コマ${slot}→${slot + 1}: 席${seat}に ${prevStu}→${stu} 連続別人`,
                   );
                 }
-              }
-            }
           }
-
-          // 連続コマ・同一生徒の座席維持ペナルティ
           if (weights.samestudent > 0 && slot > 0 && assignment[slot - 1]) {
             const prev = assignment[slot - 1];
-            for (const [stu, seat] of Object.entries(a)) {
+            for (const [stu, seat] of Object.entries(a))
               if (prev[stu] !== undefined && prev[stu] !== seat) {
                 penalty += weights.samestudent;
                 violations.push(
-                  `${stu}: コマ${slot}で席${prev[stu]} → コマ${slot + 1}で席${seat} に移動`,
+                  `${stu}: コマ${slot}で席${prev[stu]}→コマ${slot + 1}で席${seat}に移動`,
                 );
               }
-            }
           }
-
-          // 分散ペナルティ
           if (weights.spread > 0 && seats.length >= 2) {
-            for (let i = 0; i < seats.length; i++) {
+            for (let i = 0; i < seats.length; i++)
               for (let j = i + 1; j < seats.length; j++) {
-                const p1 = SEAT_POS[seats[i]];
-                const p2 = SEAT_POS[seats[j]];
+                const p1 = SEAT_POS[seats[i]],
+                  p2 = SEAT_POS[seats[j]];
                 const dist = Math.abs(p1[0] - p2[0]) + Math.abs(p1[1] - p2[1]);
                 if (dist <= 2) penalty += weights.spread * (3 - dist) * 0.3;
               }
-            }
           }
         }
         return { penalty, violations };
       }
 
       function randomAssignment(schedule, availSeats) {
-        // まず連続コマの同一生徒を検出して、先に座席を固定する
-        const assignment = {};
-        const studentFixedSeat = {}; // student -> seat (現在の連続ブロック内で固定)
-
+        const assignment = {},
+          studentFixedSeat = {};
         for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
           const students = schedule[slot] || [];
-          if (students.length === 0) {
+          if (!students.length) {
             assignment[slot] = {};
             continue;
           }
-
-          const a = {};
-          const usedSeats = new Set();
-
-          // 前のコマから継続する生徒は同じ席をキープ
-          for (const stu of students) {
+          const a = {},
+            usedSeats = new Set();
+          for (const stu of students)
             if (
               studentFixedSeat[stu] !== undefined &&
               availSeats.includes(studentFixedSeat[stu])
@@ -821,31 +803,18 @@
               a[stu] = studentFixedSeat[stu];
               usedSeats.add(studentFixedSeat[stu]);
             }
-          }
-
-          // 新規の生徒にはランダムに空き席を割り当て
           const free = availSeats
             .filter((s) => !usedSeats.has(s))
             .sort(() => Math.random() - 0.5);
           let fi = 0;
-          for (const stu of students) {
-            if (a[stu] === undefined) {
-              if (fi < free.length) {
-                a[stu] = free[fi++];
-              }
-            }
-          }
-
+          for (const stu of students)
+            if (a[stu] === undefined && fi < free.length) a[stu] = free[fi++];
           assignment[slot] = a;
-
-          // 次のコマのために、今いる生徒の席を記録し、いなくなった生徒はクリア
-          const currentStudents = new Set(students);
-          for (const key of Object.keys(studentFixedSeat)) {
-            if (!currentStudents.has(key)) delete studentFixedSeat[key];
-          }
-          for (const [stu, seat] of Object.entries(a)) {
+          const cur = new Set(students);
+          for (const k of Object.keys(studentFixedSeat))
+            if (!cur.has(k)) delete studentFixedSeat[k];
+          for (const [stu, seat] of Object.entries(a))
             studentFixedSeat[stu] = seat;
-          }
         }
         return assignment;
       }
@@ -859,18 +828,15 @@
       function mutate(assignment, schedule, availSeats) {
         const mutated = cloneAssignment(assignment);
         const nonEmpty = [];
-        for (let s = 0; s < TOTAL_SLOTS; s++) {
+        for (let s = 0; s < TOTAL_SLOTS; s++)
           if (schedule[s] && schedule[s].length > 0) nonEmpty.push(s);
-        }
-        if (nonEmpty.length === 0) return mutated;
-
+        if (!nonEmpty.length) return mutated;
         const slot = nonEmpty[Math.floor(Math.random() * nonEmpty.length)];
-        const students = schedule[slot];
-        const a = mutated[slot];
-        const r = Math.random();
+        const students = schedule[slot],
+          a = mutated[slot],
+          r = Math.random();
 
         if (r < 0.4 && students.length >= 2) {
-          // 同コマ内で2人の席を交換
           const i = Math.floor(Math.random() * students.length);
           let j = Math.floor(Math.random() * students.length);
           while (j === i) j = Math.floor(Math.random() * students.length);
@@ -878,103 +844,100 @@
           a[students[i]] = a[students[j]];
           a[students[j]] = tmp;
         } else if (r < 0.7) {
-          // 1人を空き席に移動
           const stu = students[Math.floor(Math.random() * students.length)];
-          const usedSeats = new Set(Object.values(a));
-          const free = availSeats.filter((s) => !usedSeats.has(s));
-          if (free.length > 0)
+          const used = new Set(Object.values(a));
+          const free = availSeats.filter((s) => !used.has(s));
+          if (free.length)
             a[stu] = free[Math.floor(Math.random() * free.length)];
         } else {
-          // 連続コマの同一生徒をまとめて移動（ブロック移動）
           const stu = students[Math.floor(Math.random() * students.length)];
-          const usedSeats = new Set(Object.values(a));
-          const free = availSeats.filter((s) => !usedSeats.has(s));
-          if (free.length === 0) return mutated;
-
+          const used = new Set(Object.values(a));
+          const free = availSeats.filter((s) => !used.has(s));
+          if (!free.length) return mutated;
           const newSeat = free[Math.floor(Math.random() * free.length)];
-          // この生徒が連続するコマをすべて同じ席に変更
           a[stu] = newSeat;
-          // 前方向
           for (let s = slot - 1; s >= 0; s--) {
             if (!mutated[s] || mutated[s][stu] === undefined) break;
-            const otherUsed = new Set(Object.values(mutated[s]));
-            otherUsed.delete(mutated[s][stu]);
-            if (!otherUsed.has(newSeat)) {
-              mutated[s][stu] = newSeat;
-            } else break;
+            const ou = new Set(Object.values(mutated[s]));
+            ou.delete(mutated[s][stu]);
+            if (!ou.has(newSeat)) mutated[s][stu] = newSeat;
+            else break;
           }
-          // 後方向
           for (let s = slot + 1; s < TOTAL_SLOTS; s++) {
             if (!mutated[s] || mutated[s][stu] === undefined) break;
-            const otherUsed = new Set(Object.values(mutated[s]));
-            otherUsed.delete(mutated[s][stu]);
-            if (!otherUsed.has(newSeat)) {
-              mutated[s][stu] = newSeat;
-            } else break;
+            const ou = new Set(Object.values(mutated[s]));
+            ou.delete(mutated[s][stu]);
+            if (!ou.has(newSeat)) mutated[s][stu] = newSeat;
+            else break;
           }
         }
-
         return mutated;
+      }
+
+      function computeVisibleSlots() {
+        // 最初に生徒がいるコマ〜最後に生徒がいるコマの範囲（間の空コマ含む）
+        let first = -1,
+          last = -1;
+        for (let i = 0; i < TOTAL_SLOTS; i++)
+          if (schedule[i] && schedule[i].length > 0) {
+            if (first < 0) first = i;
+            last = i;
+          }
+        if (first < 0) return [];
+        const slots = [];
+        for (let i = first; i <= last; i++) slots.push(i);
+        return slots;
       }
 
       function runOptimize() {
         readSchedule();
-        const weights = getWeights();
-        const availSeats = getAvailableSeats();
-
+        const weights = getWeights(),
+          availSeats = getAvailableSeats();
         let hasAny = false;
-        for (let s = 0; s < TOTAL_SLOTS; s++) {
+        for (let s = 0; s < TOTAL_SLOTS; s++)
           if (schedule[s] && schedule[s].length > 0) {
             hasAny = true;
             break;
           }
-        }
         if (!hasAny) {
           alert("生徒スケジュールを入力してください。");
           return;
         }
-
-        for (let s = 0; s < TOTAL_SLOTS; s++) {
+        for (let s = 0; s < TOTAL_SLOTS; s++)
           if (schedule[s] && schedule[s].length > availSeats.length) {
             alert(
               `コマ${s + 1}の生徒数(${schedule[s].length})が使用可能座席数(${availSeats.length})を超えています。`,
             );
             return;
           }
-        }
 
-        // 焼きなまし法
         let best = randomAssignment(schedule, availSeats);
         let bestScore = calcPenalty(best, weights).penalty;
-
-        let current = cloneAssignment(best);
-        let currentScore = bestScore;
-
-        const ITERATIONS = 80000;
+        let current = cloneAssignment(best),
+          currentScore = bestScore;
+        const IT = 80000;
         let temp = 12;
-        const cooling = 0.99994;
-
-        for (let i = 0; i < ITERATIONS; i++) {
-          const candidate = mutate(current, schedule, availSeats);
-          const candidateScore = calcPenalty(candidate, weights).penalty;
-          const delta = candidateScore - currentScore;
-          if (delta < 0 || Math.random() < Math.exp(-delta / temp)) {
-            current = candidate;
-            currentScore = candidateScore;
+        const cool = 0.99994;
+        for (let i = 0; i < IT; i++) {
+          const cand = mutate(current, schedule, availSeats);
+          const cs = calcPenalty(cand, weights).penalty;
+          const d = cs - currentScore;
+          if (d < 0 || Math.random() < Math.exp(-d / temp)) {
+            current = cand;
+            currentScore = cs;
           }
           if (currentScore < bestScore) {
             best = cloneAssignment(current);
             bestScore = currentScore;
           }
-          temp *= cooling;
+          temp *= cool;
           if (bestScore === 0) break;
         }
 
         result = best;
+        visibleSlots = computeVisibleSlots();
         const { violations } = calcPenalty(best, weights);
         displayResult(best, bestScore, violations);
-
-        // スクロール
         setTimeout(() => {
           document
             .getElementById("result-section")
@@ -989,51 +952,69 @@
         const scoreBar = document.getElementById("score-bar");
         const emoji = score === 0 ? "✅" : score < 5 ? "⚠️" : "🔴";
         scoreBar.innerHTML = `<span class="score-label">${emoji} ペナルティスコア: ${score.toFixed(1)}</span>
-    <span class="score-detail">(0が理想。制約違反が多いほど高い)</span>`;
+    <span class="score-detail">(0が理想)</span>`;
 
         const vList = document.getElementById("violation-list");
-        if (violations.length === 0) {
-          vList.innerHTML =
-            '<li style="color:var(--success)">制約違反なし！</li>';
-        } else {
-          vList.innerHTML = violations.map((v) => `<li>${v}</li>`).join("");
+        vList.innerHTML =
+          violations.length === 0
+            ? '<li style="color:var(--success)">制約違反なし！</li>'
+            : violations.map((v) => `<li>${v}</li>`).join("");
+
+        // スライダー設定
+        const slider = document.getElementById("slot-slider");
+        slider.min = 0;
+        slider.max = visibleSlots.length - 1;
+        slider.value = 0;
+
+        // 目盛り
+        const ticks = document.getElementById("slot-slider-ticks");
+        ticks.innerHTML = "";
+        for (let i = 0; i < visibleSlots.length; i++) {
+          const sp = document.createElement("span");
+          const sl = visibleSlots[i];
+          sp.textContent = sl + 1;
+          if (schedule[sl] && schedule[sl].length > 0)
+            sp.classList.add("has-students");
+          ticks.appendChild(sp);
         }
 
-        const nav = document.getElementById("slot-nav");
-        nav.innerHTML = "";
-        for (let i = 0; i < TOTAL_SLOTS; i++) {
-          if (!schedule[i] || schedule[i].length === 0) continue;
-          const btn = document.createElement("button");
-          btn.textContent = `${i + 1}`;
-          btn.title = TIME_LABELS[i];
-          btn.onclick = () => showSlotMap(i);
-          nav.appendChild(btn);
-        }
-        for (let i = 0; i < TOTAL_SLOTS; i++) {
-          if (schedule[i] && schedule[i].length > 0) {
-            showSlotMap(i);
-            break;
-          }
-        }
-
+        showSlotMap(visibleSlots[0]);
         buildResultTable(assignment);
       }
 
-      function showSlotMap(slot) {
-        document
-          .querySelectorAll("#slot-nav button")
-          .forEach((b) => b.classList.remove("active"));
-        document.querySelectorAll("#slot-nav button").forEach((b) => {
-          if (b.textContent == String(slot + 1)) b.classList.add("active");
-        });
+      function slotStep(dir) {
+        const slider = document.getElementById("slot-slider");
+        const v = parseInt(slider.value) + dir;
+        if (v >= parseInt(slider.min) && v <= parseInt(slider.max)) {
+          slider.value = v;
+          showSlotMap(visibleSlots[v]);
+        }
+      }
 
-        const map = document.getElementById("seat-map");
-        map.innerHTML = "";
-        map.style.display = "grid";
-        map.style.gridTemplateColumns = "repeat(5, 1fr)";
-        map.style.gridTemplateRows = "repeat(4, 1fr)";
-        map.style.gap = "6px";
-        map.style.maxWidth = "500px";
+      function showSlotMap(slot) {
+        const label = document.getElementById("slot-slider-label");
+        const students = schedule[slot] || [];
+        const hasStudents = students.length > 0;
+        label.innerHTML =
+          `コマ ${slot + 1}<span class="slot-sub">${TIME_LABELS[slot]}</span>` +
+          (hasStudents
+            ? `<span class="slot-sub">（${students.length}名）</span>`
+            : `<span class="slot-sub">（生徒なし）</span>`);
+
+        // スライダー位置も同期
+        const idx = visibleSlots.indexOf(slot);
+        if (idx >= 0) document.getElementById("slot-slider").value = idx;
+
+        const area = document.getElementById("seat-map-area");
+
+        if (!hasStudents) {
+          area.innerHTML = `<div class="no-students-msg">この時間帯に生徒はいません</div>`;
+          return;
+        }
+
+        // 座席マップ描画
+        let mapHtml =
+          '<div class="seat-map" style="display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(4,1fr);gap:6px;max-width:500px;margin:0 auto;">';
 
         const a = result[slot] || {};
         const seatToStudent = {};
@@ -1041,48 +1022,44 @@
 
         const violatedSeats = new Set();
         const seats = Object.values(a);
-        const students = Object.keys(a);
-        for (let i = 0; i < seats.length; i++) {
-          for (let j = i + 1; j < seats.length; j++) {
+        for (let i = 0; i < seats.length; i++)
+          for (let j = i + 1; j < seats.length; j++)
             if (isAdjacent(seats[i], seats[j])) {
               violatedSeats.add(seats[i]);
               violatedSeats.add(seats[j]);
             }
-          }
-        }
 
         for (let row = 1; row <= 4; row++) {
           for (let col = 1; col <= 5; col++) {
             let seatNum = null;
-            for (const [s, [gr, gc]] of Object.entries(DISPLAY_GRID)) {
+            for (const [s, [gr, gc]] of Object.entries(DISPLAY_GRID))
               if (gr === row && gc === col) {
                 seatNum = parseInt(s);
                 break;
               }
-            }
-            const cell = document.createElement("div");
-            cell.classList.add("seat-cell");
-            cell.style.gridRow = row;
-            cell.style.gridColumn = col;
 
+            let cls = "seat-cell",
+              style = `grid-row:${row};grid-column:${col};`,
+              inner = "";
             if (!seatNum) {
-              cell.classList.add("empty-space");
-              cell.innerHTML = "&nbsp;";
+              cls += " empty-space";
+              inner = "&nbsp;";
             } else if (disabledSeats.has(seatNum)) {
-              cell.classList.add("disabled");
-              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span>✕</span>`;
+              cls += " disabled";
+              inner = `<span class="seat-num">席${seatNum}</span><span>✕</span>`;
             } else if (seatToStudent[seatNum]) {
-              cell.classList.add("occupied");
-              if (violatedSeats.has(seatNum))
-                cell.classList.add("has-violation");
-              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span class="seat-student">${seatToStudent[seatNum]}</span>`;
+              cls += " occupied";
+              if (violatedSeats.has(seatNum)) cls += " has-violation";
+              inner = `<span class="seat-num">席${seatNum}</span><span class="seat-student">${seatToStudent[seatNum]}</span>`;
             } else {
-              cell.classList.add("vacant");
-              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span>-</span>`;
+              cls += " vacant";
+              inner = `<span class="seat-num">席${seatNum}</span><span>-</span>`;
             }
-            map.appendChild(cell);
+            mapHtml += `<div class="${cls}" style="${style}">${inner}</div>`;
           }
         }
+        mapHtml += "</div>";
+        area.innerHTML = mapHtml;
       }
 
       function buildResultTable(assignment) {
@@ -1094,27 +1071,27 @@
         }
         html += "</tr></thead><tbody>";
 
-        for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
+        for (const slot of visibleSlots) {
           const a = assignment[slot] || {};
           const seatToStudent = {};
           for (const [stu, seat] of Object.entries(a))
             seatToStudent[seat] = stu;
-          if (!schedule[slot] || schedule[slot].length === 0) continue;
+          const hasStudents = schedule[slot] && schedule[slot].length > 0;
+          const rowCls = hasStudents ? "" : "empty-row";
 
-          html += `<tr><td>${slot + 1}</td><td style="white-space:nowrap">${TIME_LABELS[slot]}</td>`;
+          html += `<tr class="${rowCls}"><td>${slot + 1}</td><td style="white-space:nowrap">${TIME_LABELS[slot]}</td>`;
           for (let s = 1; s <= TOTAL_SEATS; s++) {
             if (disabledSeats.has(s)) {
               html += '<td style="background:#fee2e2">✕</td>';
             } else if (seatToStudent[s]) {
               html += `<td style="background:#dbeafe;font-weight:600">${seatToStudent[s]}</td>`;
             } else {
-              html += "<td></td>";
+              html += `<td>${hasStudents ? "" : ""}</td>`;
             }
           }
           html += "</tr>";
         }
-        html += "</tbody>";
-        table.innerHTML = html;
+        table.innerHTML = html + "</tbody>";
       }
 
       init();
