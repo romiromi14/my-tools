@@ -166,6 +166,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        line-height: 1.4; /* ← 追加：行の高さを揃える */
         transition: background 0.15s;
       }
       .dev-list a:hover {
@@ -174,6 +175,12 @@
       }
       .dev-list .dev-icon {
         font-size: 1.2em;
+        font-family:
+          "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+        line-height: 1; /* ← 追加：アイコンの行高を1に固定 */
+        display: inline-flex; /* ← 追加：flexで中央配置 */
+        align-items: center;
+        transform: translateY(-1px); /* ← 微調整：1pxだけ上にずらす */
       }
     </style>
   </head>
@@ -240,7 +247,6 @@
         {
           filename: "booth_arrangement.html",
           title: "ブース配置ツール",
-          icon: "📋",
         },
         // 開発中のものがあればここに追加
       ];
@@ -402,7 +408,7 @@
             DEV_TOOLS.forEach((dev) => {
               const link = document.createElement("a");
               link.href = dev.filename;
-              link.innerHTML = `<span class="dev-icon">${dev.icon}</span> ${dev.title} <span style="opacity:0.5;font-size:0.85em;margin-left:auto;">${dev.filename}</span>`;
+              link.innerHTML = ` ${dev.title} <span style="opacity:0.5;font-size:0.85em;margin-left:auto;">${dev.filename}</span>`;
               devList.appendChild(link);
             });
           }
