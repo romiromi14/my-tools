@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>塾 座席配置ツール</title>
+    <style>
+      :root {
+        --bg: #f5f5f5;
+        --card: #fff;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #ef4444;
+        --text: #1e293b;
+        --text-light: #64748b;
+        --border: #e2e8f0;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --seat-empty: #f1f5f9;
+        --seat-used: #dbeafe;
+        --seat-disabled: #fecaca;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 1.5rem;
+        margin-bottom: 8px;
+        color: var(--primary);
+      }
+
+      .subtitle {
+        text-align: center;
+        color: var(--text-light);
+        font-size: 0.85rem;
+        margin-bottom: 24px;
+      }
+
+      .section {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+
+      .section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--border);
+      }
+
+      /* --- Constraint sliders --- */
+      .constraint-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .constraint-row label {
+        min-width: 260px;
+        font-size: 0.9rem;
+      }
+
+      .constraint-row input[type="range"] {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .constraint-row .val {
+        width: 28px;
+        text-align: right;
+        font-weight: bold;
+        font-size: 0.9rem;
+      }
+
+      /* --- Disabled seats --- */
+      .disabled-seats-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .disabled-seats-grid label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--seat-empty);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .disabled-seats-grid label:has(input:checked) {
+        background: var(--seat-disabled);
+        text-decoration: line-through;
+      }
+
+      /* --- Schedule input --- */
+      .schedule-table-wrap {
+        overflow-x: auto;
+      }
+
+      .schedule-table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 500px;
+      }
+
+      .schedule-table th,
+      .schedule-table td {
+        border: 1px solid var(--border);
+        padding: 6px 8px;
+        text-align: center;
+        font-size: 0.85rem;
+      }
+
+      .schedule-table th {
+        background: #eef2ff;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        white-space: nowrap;
+      }
+
+      .schedule-table th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+      }
+
+      .schedule-table td:first-child {
+        position: sticky;
+        left: 0;
+        background: #f8fafc;
+        z-index: 1;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      .schedule-table td input[type="text"] {
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: center;
+        font-size: 0.85rem;
+        outline: none;
+        padding: 2px;
+      }
+
+      .schedule-table td input[type="text"]:focus {
+        background: #fffbeb;
+        border-radius: 4px;
+      }
+
+      .quick-input {
+        margin-bottom: 12px;
+      }
+
+      .quick-input textarea {
+        width: 100%;
+        min-height: 80px;
+        font-family: inherit;
+        font-size: 0.85rem;
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        resize: vertical;
+      }
+
+      .quick-input p {
+        font-size: 0.8rem;
+        color: var(--text-light);
+        margin-top: 4px;
+      }
+
+      /* --- Buttons --- */
+      .btn-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+
+      .btn {
+        padding: 10px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+
+      .btn-secondary {
+        background: var(--border);
+        color: var(--text);
+      }
+
+      .btn-secondary:hover {
+        background: #cbd5e1;
+      }
+
+      /* --- Result layout --- */
+      .result-slot-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+
+      .result-slot-nav button {
+        padding: 4px 10px;
+        font-size: 0.8rem;
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .result-slot-nav button.active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+
+      /* Seat map */
+      .seat-map {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 8px;
+        max-width: 480px;
+        margin: 0 auto 16px;
+      }
+
+      .seat-cell {
+        aspect-ratio: 1.6;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+      }
+
+      .seat-cell.empty-space {
+        visibility: hidden;
+      }
+
+      .seat-cell.disabled {
+        background: #fee2e2;
+        color: #b91c1c;
+        border-color: #fca5a5;
+      }
+
+      .seat-cell.vacant {
+        background: var(--seat-empty);
+        color: var(--text-light);
+        border-color: var(--border);
+      }
+
+      .seat-cell.occupied {
+        background: var(--seat-used);
+        color: var(--primary);
+        border-color: #93c5fd;
+      }
+
+      .seat-cell .seat-num {
+        font-size: 0.7rem;
+        color: var(--text-light);
+      }
+
+      .seat-cell .seat-student {
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      /* Violation badges */
+      .seat-cell.has-violation {
+        border-color: var(--warning);
+        background: #fef9c3;
+      }
+
+      /* Result table */
+      .result-table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 16px;
+        font-size: 0.85rem;
+      }
+
+      .result-table th,
+      .result-table td {
+        border: 1px solid var(--border);
+        padding: 5px 8px;
+        text-align: center;
+      }
+
+      .result-table th {
+        background: #eef2ff;
+        white-space: nowrap;
+      }
+
+      .result-table td.violation {
+        background: #fef3c7;
+      }
+
+      /* Score */
+      .score-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .score-bar .score-label {
+        font-weight: 600;
+      }
+
+      .score-bar .score-detail {
+        font-size: 0.85rem;
+        color: var(--text-light);
+      }
+
+      .violation-list {
+        font-size: 0.8rem;
+        color: var(--danger);
+        margin-top: 4px;
+      }
+
+      .violation-list li {
+        margin-left: 16px;
+        margin-bottom: 2px;
+      }
+
+      /* tabs */
+      .tab-bar {
+        display: flex;
+        gap: 0;
+        margin-bottom: 16px;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .tab-bar button {
+        padding: 8px 20px;
+        border: none;
+        background: transparent;
+        font-size: 0.9rem;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        color: var(--text-light);
+        font-weight: 500;
+      }
+
+      .tab-bar button.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+        font-weight: 700;
+      }
+
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 10px;
+        }
+        .section {
+          padding: 14px;
+        }
+        .constraint-row label {
+          min-width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>塾 座席配置ツール</h1>
+    <p class="subtitle">
+      時間帯ごとの生徒を入力 → 自動で良い感じに座席を振り分けます
+    </p>
+
+    <!-- ===== 制約設定 ===== -->
+    <div class="section">
+      <h2>⚙️ 制約設定</h2>
+
+      <div class="constraint-row">
+        <label>同時間帯で隣接座席に配置しない</label>
+        <input type="range" id="w-adjacent" min="0" max="10" value="5" />
+        <span class="val" id="w-adjacent-val">5</span>
+      </div>
+
+      <div class="constraint-row">
+        <label>連続時間帯で同じ座席に別の生徒を置かない</label>
+        <input type="range" id="w-consecutive" min="0" max="10" value="3" />
+        <span class="val" id="w-consecutive-val">3</span>
+      </div>
+
+      <div class="constraint-row">
+        <label>できるだけ散らばって配置する</label>
+        <input type="range" id="w-spread" min="0" max="10" value="2" />
+        <span class="val" id="w-spread-val">2</span>
+      </div>
+
+      <h3 style="font-size: 0.9rem; margin-top: 16px; margin-bottom: 6px">
+        使用禁止座席
+      </h3>
+      <div class="disabled-seats-grid" id="disabled-seats"></div>
+    </div>
+
+    <!-- ===== 生徒入力 ===== -->
+    <div class="section">
+      <h2>📝 生徒スケジュール入力</h2>
+
+      <div class="tab-bar">
+        <button class="active" onclick="switchInputTab('quick')">
+          まとめて入力
+        </button>
+        <button onclick="switchInputTab('table')">テーブル入力</button>
+      </div>
+
+      <div id="tab-quick" class="tab-content active">
+        <div class="quick-input">
+          <textarea
+            id="quick-text"
+            placeholder="1: A, B, C
+2: A, D
+3: D, E, F
+..."
+          ></textarea>
+          <p>
+            形式:
+            <code>コマ番号: 生徒名, 生徒名, ...</code
+            >（1行1コマ）。コマ番号は1〜13。生徒名はカンマ区切り。
+          </p>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="applyQuickInput()">
+              テーブルに反映
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-table" class="tab-content">
+        <div class="schedule-table-wrap">
+          <table class="schedule-table" id="schedule-table"></table>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-light); margin-top: 6px">
+          各セルに生徒名を入力してください（1セル1人）。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===== 実行 ===== -->
+    <div class="section" style="text-align: center">
+      <div class="btn-group" style="justify-content: center">
+        <button class="btn btn-primary" onclick="runOptimize()">
+          🚀 配置を最適化
+        </button>
+        <button class="btn btn-secondary" onclick="clearAll()">クリア</button>
+      </div>
+    </div>
+
+    <!-- ===== 結果 ===== -->
+    <div class="section hidden" id="result-section">
+      <h2>📊 配置結果</h2>
+      <div class="score-bar" id="score-bar"></div>
+      <ul class="violation-list" id="violation-list"></ul>
+
+      <div class="result-slot-nav" id="slot-nav"></div>
+      <div class="seat-map" id="seat-map"></div>
+
+      <h3 style="font-size: 0.95rem; margin-top: 20px; margin-bottom: 8px">
+        一覧表
+      </h3>
+      <div style="overflow-x: auto">
+        <table class="result-table" id="result-table"></table>
+      </div>
+    </div>
+
+    <script>
+      // ==========================
+      // Data definitions
+      // ==========================
+      const TOTAL_SEATS = 13;
+      const TOTAL_SLOTS = 13;
+
+      // Time labels
+      const TIME_LABELS = [];
+      {
+        let h = 11,
+          m = 0;
+        for (let i = 0; i < TOTAL_SLOTS; i++) {
+          const sh = String(h).padStart(2, "0");
+          const sm = String(m).padStart(2, "0");
+          const eh = m + 50 >= 60 ? h + 1 : h;
+          const em = (m + 50) % 60;
+          TIME_LABELS.push(
+            `${sh}:${sm}-${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
+          );
+          m += 50;
+          if (m >= 60) {
+            h += Math.floor(m / 60);
+            m = m % 60;
+          }
+        }
+      }
+
+      // Physical seat layout (row, col) — used for adjacency & display
+      // Grid: 4 cols x 4 rows, bottom-left is (0,0)
+      // Row 0 (bottom): seat1(0,0) seat2(0,1)  ___  seat3(0,2)
+      // Row 1:          seat4(1,0) seat5(1,1)  ___  seat6(1,2) seat7(1,3)
+      // Row 2:          seat8(2,0) seat9(2,1)  ___  seat10(2,2) seat11(2,3)
+      // Row 3 (top):     ___       seat12(3,1) ___  seat13(3,2)
+      const SEAT_POS = {
+        1: [0, 0],
+        2: [0, 1],
+        3: [0, 3],
+        4: [1, 0],
+        5: [1, 1],
+        6: [1, 3],
+        7: [1, 4],
+        8: [2, 0],
+        9: [2, 1],
+        10: [2, 3],
+        11: [2, 4],
+        12: [3, 1],
+        13: [3, 3],
+      };
+
+      // Adjacency: two seats are adjacent if they are physically next to each other
+      // Based on the image layout
+      const ADJACENCY = [
+        [1, 2],
+        [1, 4],
+        [2, 5],
+        [4, 5],
+        [4, 8],
+        [5, 9],
+        [8, 9],
+        [9, 12],
+        [3, 6],
+        [6, 7],
+        [6, 10],
+        [7, 11],
+        [10, 11],
+        [10, 13],
+        [3, 7], // diagonal? no — let me re-check
+      ];
+
+      // Actually let me define adjacency more carefully based on the grid image:
+      // Seats sharing an edge (horizontally or vertically adjacent in physical space)
+      // Left block: 1,2,4,5,8,9,12
+      // Right block: 3,6,7,10,11,13
+      // Left block adjacencies:
+      //  1-2 (same row, next col), 1-4 (same col, next row), 2-5 (same col, next row)
+      //  4-5 (same row), 4-8 (same col), 5-9 (same col)
+      //  8-9 (same row), 8-12? no, 12 is at (3,1) and 8 is at (2,0) — diagonal
+      //  9-12 (same col, next row)
+      // Right block adjacencies:
+      //  3-6 (same col... 3 is at (0,3), 6 is at (1,3)) yes
+      //  6-7 (same row), 6-10 (same col), 7-11 (same col)
+      //  10-11 (same row), 10-13 (same col, next row)
+
+      const ADJ_SET = new Set();
+      function addAdj(a, b) {
+        ADJ_SET.add(`${Math.min(a, b)}-${Math.max(a, b)}`);
+      }
+      // Left block
+      addAdj(1, 2);
+      addAdj(1, 4);
+      addAdj(2, 5);
+      addAdj(4, 5);
+      addAdj(4, 8);
+      addAdj(5, 9);
+      addAdj(8, 9);
+      addAdj(9, 12);
+      // Right block
+      addAdj(3, 6);
+      addAdj(6, 7);
+      addAdj(6, 10);
+      addAdj(7, 11);
+      addAdj(10, 11);
+      addAdj(10, 13);
+
+      function isAdjacent(a, b) {
+        return ADJ_SET.has(`${Math.min(a, b)}-${Math.max(a, b)}`);
+      }
+
+      // Display grid: 4 rows x 5 cols (with gap column 2)
+      // Map seat -> grid position for CSS grid display
+      // Grid is displayed top-to-bottom, so row 3 is grid-row 1
+      const DISPLAY_GRID = {
+        12: [1, 2],
+        13: [1, 4],
+        8: [2, 1],
+        9: [2, 2],
+        10: [2, 4],
+        11: [2, 5],
+        4: [3, 1],
+        5: [3, 2],
+        6: [3, 4],
+        7: [3, 5],
+        1: [4, 1],
+        2: [4, 2],
+        3: [4, 4],
+      };
+
+      // ==========================
+      // State
+      // ==========================
+      let disabledSeats = new Set();
+      let schedule = {}; // slot (0-12) -> [student names]
+      let result = null; // slot (0-12) -> { student: seatNum }
+
+      // ==========================
+      // Init
+      // ==========================
+      function init() {
+        // Disabled seats checkboxes
+        const dsc = document.getElementById("disabled-seats");
+        for (let s = 1; s <= TOTAL_SEATS; s++) {
+          const lbl = document.createElement("label");
+          lbl.innerHTML = `<input type="checkbox" value="${s}" onchange="toggleDisabledSeat(${s}, this.checked)"> 座席${s}`;
+          dsc.appendChild(lbl);
+        }
+
+        // Slider listeners
+        ["w-adjacent", "w-consecutive", "w-spread"].forEach((id) => {
+          const slider = document.getElementById(id);
+          const valEl = document.getElementById(id + "-val");
+          slider.addEventListener("input", () => {
+            valEl.textContent = slider.value;
+          });
+        });
+
+        buildScheduleTable();
+      }
+
+      function toggleDisabledSeat(s, checked) {
+        if (checked) disabledSeats.add(s);
+        else disabledSeats.delete(s);
+      }
+
+      function buildScheduleTable() {
+        const maxStudents = 13; // max per slot
+        const table = document.getElementById("schedule-table");
+        let html = "<thead><tr><th>コマ</th>";
+        for (let j = 1; j <= maxStudents; j++) html += `<th>生徒${j}</th>`;
+        html += "</tr></thead><tbody>";
+        for (let i = 0; i < TOTAL_SLOTS; i++) {
+          html += `<tr><td>${i + 1}<br><span style="font-size:0.7rem;font-weight:normal">${TIME_LABELS[i]}</span></td>`;
+          for (let j = 0; j < maxStudents; j++) {
+            html += `<td><input type="text" data-slot="${i}" data-idx="${j}"></td>`;
+          }
+          html += "</tr>";
+        }
+        html += "</tbody>";
+        table.innerHTML = html;
+      }
+
+      function switchInputTab(tab) {
+        document
+          .querySelectorAll(".tab-bar button")
+          .forEach((b) => b.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((c) => c.classList.remove("active"));
+        if (tab === "quick") {
+          document
+            .querySelector(".tab-bar button:nth-child(1)")
+            .classList.add("active");
+          document.getElementById("tab-quick").classList.add("active");
+        } else {
+          document
+            .querySelector(".tab-bar button:nth-child(2)")
+            .classList.add("active");
+          document.getElementById("tab-table").classList.add("active");
+        }
+      }
+
+      function applyQuickInput() {
+        const text = document.getElementById("quick-text").value.trim();
+        // Clear table first
+        document
+          .querySelectorAll("#schedule-table input[type=text]")
+          .forEach((inp) => (inp.value = ""));
+
+        const lines = text.split("\n").filter((l) => l.trim());
+        for (const line of lines) {
+          const match = line.match(/^\s*(\d+)\s*[:：]\s*(.+)$/);
+          if (!match) continue;
+          const slot = parseInt(match[1]) - 1;
+          if (slot < 0 || slot >= TOTAL_SLOTS) continue;
+          const students = match[2]
+            .split(/[,、，\s]+/)
+            .map((s) => s.trim())
+            .filter((s) => s);
+          students.forEach((name, idx) => {
+            const inp = document.querySelector(
+              `input[data-slot="${slot}"][data-idx="${idx}"]`,
+            );
+            if (inp) inp.value = name;
+          });
+        }
+        // Switch to table view
+        switchInputTab("table");
+      }
+
+      function readSchedule() {
+        schedule = {};
+        for (let i = 0; i < TOTAL_SLOTS; i++) {
+          const students = [];
+          for (let j = 0; j < 13; j++) {
+            const inp = document.querySelector(
+              `input[data-slot="${i}"][data-idx="${j}"]`,
+            );
+            if (inp && inp.value.trim()) students.push(inp.value.trim());
+          }
+          schedule[i] = students;
+        }
+      }
+
+      function clearAll() {
+        document.getElementById("quick-text").value = "";
+        document
+          .querySelectorAll("#schedule-table input[type=text]")
+          .forEach((inp) => (inp.value = ""));
+        document
+          .querySelectorAll("#disabled-seats input[type=checkbox]")
+          .forEach((cb) => {
+            cb.checked = false;
+          });
+        disabledSeats.clear();
+        document.getElementById("result-section").classList.add("hidden");
+        result = null;
+      }
+
+      // ==========================
+      // Optimizer (simulated annealing)
+      // ==========================
+      function getWeights() {
+        return {
+          adjacent: parseInt(document.getElementById("w-adjacent").value),
+          consecutive: parseInt(document.getElementById("w-consecutive").value),
+          spread: parseInt(document.getElementById("w-spread").value),
+        };
+      }
+
+      function getAvailableSeats() {
+        const seats = [];
+        for (let s = 1; s <= TOTAL_SEATS; s++) {
+          if (!disabledSeats.has(s)) seats.push(s);
+        }
+        return seats;
+      }
+
+      function calcPenalty(assignment, weights) {
+        // assignment: slot -> { studentName: seatNumber }
+        let penalty = 0;
+        const violations = [];
+
+        const availSeats = getAvailableSeats();
+
+        for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
+          const a = assignment[slot];
+          if (!a) continue;
+          const students = Object.keys(a);
+          const seats = Object.values(a);
+
+          // Adjacent penalty
+          if (weights.adjacent > 0) {
+            for (let i = 0; i < seats.length; i++) {
+              for (let j = i + 1; j < seats.length; j++) {
+                if (isAdjacent(seats[i], seats[j])) {
+                  penalty += weights.adjacent;
+                  violations.push(
+                    `コマ${slot + 1}: ${students[i]}(席${seats[i]}) と ${students[j]}(席${seats[j]}) が隣接`,
+                  );
+                }
+              }
+            }
+          }
+
+          // Consecutive slot penalty
+          if (weights.consecutive > 0 && slot > 0 && assignment[slot - 1]) {
+            const prev = assignment[slot - 1];
+            for (const [stu, seat] of Object.entries(a)) {
+              for (const [prevStu, prevSeat] of Object.entries(prev)) {
+                if (prevStu !== stu && prevSeat === seat) {
+                  penalty += weights.consecutive;
+                  violations.push(
+                    `コマ${slot}: ${prevStu}(席${prevSeat}) → コマ${slot + 1}: ${stu}(席${seat}) 連続別人`,
+                  );
+                }
+              }
+            }
+          }
+
+          // Spread penalty: prefer seats far apart
+          if (weights.spread > 0 && seats.length >= 2) {
+            for (let i = 0; i < seats.length; i++) {
+              for (let j = i + 1; j < seats.length; j++) {
+                const p1 = SEAT_POS[seats[i]];
+                const p2 = SEAT_POS[seats[j]];
+                const dist = Math.abs(p1[0] - p2[0]) + Math.abs(p1[1] - p2[1]);
+                if (dist <= 2) {
+                  penalty += weights.spread * (3 - dist) * 0.3;
+                }
+              }
+            }
+          }
+        }
+
+        return { penalty, violations };
+      }
+
+      function randomAssignment(schedule, availSeats) {
+        const assignment = {};
+        for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
+          const students = schedule[slot] || [];
+          if (students.length === 0) {
+            assignment[slot] = {};
+            continue;
+          }
+          const shuffled = [...availSeats].sort(() => Math.random() - 0.5);
+          const a = {};
+          students.forEach((stu, idx) => {
+            if (idx < shuffled.length) a[stu] = shuffled[idx];
+          });
+          assignment[slot] = a;
+        }
+        return assignment;
+      }
+
+      function cloneAssignment(a) {
+        const b = {};
+        for (const slot in a) b[slot] = { ...a[slot] };
+        return b;
+      }
+
+      function mutate(assignment, schedule, availSeats) {
+        const mutated = cloneAssignment(assignment);
+        // Pick a random non-empty slot and swap two seats, or reassign one student
+        const nonEmpty = [];
+        for (let s = 0; s < TOTAL_SLOTS; s++) {
+          if (schedule[s] && schedule[s].length > 0) nonEmpty.push(s);
+        }
+        if (nonEmpty.length === 0) return mutated;
+
+        const slot = nonEmpty[Math.floor(Math.random() * nonEmpty.length)];
+        const students = schedule[slot];
+        const a = mutated[slot];
+
+        const r = Math.random();
+        if (students.length >= 2 && r < 0.5) {
+          // Swap two students' seats within the slot
+          const i = Math.floor(Math.random() * students.length);
+          let j = Math.floor(Math.random() * students.length);
+          while (j === i) j = Math.floor(Math.random() * students.length);
+          const tmp = a[students[i]];
+          a[students[i]] = a[students[j]];
+          a[students[j]] = tmp;
+        } else {
+          // Reassign one student to a different available seat
+          const stu = students[Math.floor(Math.random() * students.length)];
+          const usedSeats = new Set(Object.values(a));
+          const free = availSeats.filter((s) => !usedSeats.has(s));
+          if (free.length > 0) {
+            a[stu] = free[Math.floor(Math.random() * free.length)];
+          }
+        }
+
+        return mutated;
+      }
+
+      function runOptimize() {
+        readSchedule();
+        const weights = getWeights();
+        const availSeats = getAvailableSeats();
+
+        // Check input
+        let hasAny = false;
+        for (let s = 0; s < TOTAL_SLOTS; s++) {
+          if (schedule[s] && schedule[s].length > 0) {
+            hasAny = true;
+            break;
+          }
+        }
+        if (!hasAny) {
+          alert("生徒スケジュールを入力してください。");
+          return;
+        }
+
+        // Check if enough seats
+        for (let s = 0; s < TOTAL_SLOTS; s++) {
+          if (schedule[s] && schedule[s].length > availSeats.length) {
+            alert(
+              `コマ${s + 1}の生徒数(${schedule[s].length})が使用可能座席数(${availSeats.length})を超えています。`,
+            );
+            return;
+          }
+        }
+
+        // Simulated annealing
+        let best = randomAssignment(schedule, availSeats);
+        let bestScore = calcPenalty(best, weights).penalty;
+
+        let current = cloneAssignment(best);
+        let currentScore = bestScore;
+
+        const ITERATIONS = 50000;
+        let temp = 10;
+        const cooling = 0.99995;
+
+        for (let i = 0; i < ITERATIONS; i++) {
+          const candidate = mutate(current, schedule, availSeats);
+          const candidateScore = calcPenalty(candidate, weights).penalty;
+
+          const delta = candidateScore - currentScore;
+          if (delta < 0 || Math.random() < Math.exp(-delta / temp)) {
+            current = candidate;
+            currentScore = candidateScore;
+          }
+
+          if (currentScore < bestScore) {
+            best = cloneAssignment(current);
+            bestScore = currentScore;
+          }
+
+          temp *= cooling;
+
+          if (bestScore === 0) break;
+        }
+
+        result = best;
+        const { violations } = calcPenalty(best, weights);
+        displayResult(best, bestScore, violations);
+      }
+
+      // ==========================
+      // Display
+      // ==========================
+      function displayResult(assignment, score, violations) {
+        const section = document.getElementById("result-section");
+        section.classList.remove("hidden");
+
+        // Score
+        const scoreBar = document.getElementById("score-bar");
+        const emoji = score === 0 ? "✅" : score < 5 ? "⚠️" : "🔴";
+        scoreBar.innerHTML = `<span class="score-label">${emoji} ペナルティスコア: ${score.toFixed(1)}</span>
+    <span class="score-detail">(0が理想。制約違反が多いほど高い)</span>`;
+
+        // Violations
+        const vList = document.getElementById("violation-list");
+        if (violations.length === 0) {
+          vList.innerHTML =
+            '<li style="color:var(--success)">制約違反なし！</li>';
+        } else {
+          vList.innerHTML = violations.map((v) => `<li>${v}</li>`).join("");
+        }
+
+        // Slot nav
+        const nav = document.getElementById("slot-nav");
+        nav.innerHTML = "";
+        for (let i = 0; i < TOTAL_SLOTS; i++) {
+          if (!schedule[i] || schedule[i].length === 0) continue;
+          const btn = document.createElement("button");
+          btn.textContent = `${i + 1}`;
+          btn.title = TIME_LABELS[i];
+          btn.onclick = () => showSlotMap(i);
+          nav.appendChild(btn);
+        }
+        // Show first non-empty
+        for (let i = 0; i < TOTAL_SLOTS; i++) {
+          if (schedule[i] && schedule[i].length > 0) {
+            showSlotMap(i);
+            break;
+          }
+        }
+
+        // Result table
+        buildResultTable(assignment);
+      }
+
+      function showSlotMap(slot) {
+        // Update nav
+        document
+          .querySelectorAll("#slot-nav button")
+          .forEach((b) => b.classList.remove("active"));
+        const navBtns = document.querySelectorAll("#slot-nav button");
+        navBtns.forEach((b) => {
+          if (b.textContent == String(slot + 1)) b.classList.add("active");
+        });
+
+        const map = document.getElementById("seat-map");
+        map.innerHTML = "";
+        map.style.display = "grid";
+        map.style.gridTemplateColumns = "repeat(5, 1fr)";
+        map.style.gridTemplateRows = "repeat(4, 1fr)";
+        map.style.gap = "6px";
+        map.style.maxWidth = "500px";
+
+        const a = result[slot] || {};
+        const seatToStudent = {};
+        for (const [stu, seat] of Object.entries(a)) seatToStudent[seat] = stu;
+
+        // Check violations for highlighting
+        const weights = getWeights();
+        const violatedSeats = new Set();
+        const seats = Object.values(a);
+        const students = Object.keys(a);
+        for (let i = 0; i < seats.length; i++) {
+          for (let j = i + 1; j < seats.length; j++) {
+            if (isAdjacent(seats[i], seats[j])) {
+              violatedSeats.add(seats[i]);
+              violatedSeats.add(seats[j]);
+            }
+          }
+        }
+
+        // Render all 4x5 cells
+        for (let row = 1; row <= 4; row++) {
+          for (let col = 1; col <= 5; col++) {
+            // Find seat at this grid position
+            let seatNum = null;
+            for (const [s, [gr, gc]] of Object.entries(DISPLAY_GRID)) {
+              if (gr === row && gc === col) {
+                seatNum = parseInt(s);
+                break;
+              }
+            }
+
+            const cell = document.createElement("div");
+            cell.classList.add("seat-cell");
+            cell.style.gridRow = row;
+            cell.style.gridColumn = col;
+
+            if (!seatNum) {
+              cell.classList.add("empty-space");
+              cell.innerHTML = "&nbsp;";
+            } else if (disabledSeats.has(seatNum)) {
+              cell.classList.add("disabled");
+              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span>✕</span>`;
+            } else if (seatToStudent[seatNum]) {
+              cell.classList.add("occupied");
+              if (violatedSeats.has(seatNum))
+                cell.classList.add("has-violation");
+              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span class="seat-student">${seatToStudent[seatNum]}</span>`;
+            } else {
+              cell.classList.add("vacant");
+              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span>-</span>`;
+            }
+
+            map.appendChild(cell);
+          }
+        }
+      }
+
+      function buildResultTable(assignment) {
+        const table = document.getElementById("result-table");
+        let html = "<thead><tr><th>コマ</th><th>時間帯</th>";
+        for (let s = 1; s <= TOTAL_SEATS; s++) {
+          const cls = disabledSeats.has(s) ? ' style="background:#fee2e2"' : "";
+          html += `<th${cls}>席${s}</th>`;
+        }
+        html += "</tr></thead><tbody>";
+
+        for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
+          const a = assignment[slot] || {};
+          const seatToStudent = {};
+          for (const [stu, seat] of Object.entries(a))
+            seatToStudent[seat] = stu;
+
+          if (!schedule[slot] || schedule[slot].length === 0) continue;
+
+          html += `<tr><td>${slot + 1}</td><td style="white-space:nowrap">${TIME_LABELS[slot]}</td>`;
+          for (let s = 1; s <= TOTAL_SEATS; s++) {
+            if (disabledSeats.has(s)) {
+              html += '<td style="background:#fee2e2">✕</td>';
+            } else if (seatToStudent[s]) {
+              html += `<td style="background:#dbeafe;font-weight:600">${seatToStudent[s]}</td>`;
+            } else {
+              html += "<td></td>";
+            }
+          }
+          html += "</tr>";
+        }
+        html += "</tbody>";
+        table.innerHTML = html;
+      }
+
+      // ==========================
+      // Init on load
+      // ==========================
+      init();
+    </script>
+  </body>
+</html>
