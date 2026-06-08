@@ -197,22 +197,23 @@
         background: #cbd5e1;
       }
 
-      /* Slider area */
       .slot-slider-wrap {
         margin-bottom: 16px;
       }
       .slot-slider-label {
         text-align: center;
-        font-weight: 700;
-        font-size: 1.05rem;
         margin-bottom: 8px;
+        line-height: 1.4;
+      }
+      .slot-slider-label .slot-time {
+        font-size: 1.15rem;
+        font-weight: 700;
         color: var(--primary);
       }
-      .slot-slider-label .slot-sub {
+      .slot-slider-label .slot-meta {
         font-size: 0.8rem;
         font-weight: 400;
         color: var(--text-light);
-        margin-left: 6px;
       }
       .slot-slider-track {
         display: flex;
@@ -255,11 +256,22 @@
         font-weight: 700;
       }
 
+      .no-students-overlay {
+        text-align: center;
+        color: var(--text-light);
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+      }
+
+      .seat-map-container {
+        max-width: 500px;
+        margin: 0 auto 16px;
+      }
       .seat-map {
         display: grid;
-        gap: 8px;
-        max-width: 480px;
-        margin: 0 auto 16px;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 6px;
       }
       .seat-cell {
         aspect-ratio: 1.6;
@@ -271,7 +283,7 @@
         font-size: 0.8rem;
         font-weight: 600;
         border: 2px solid transparent;
-        transition: all 0.2s;
+        transition: all 0.15s;
       }
       .seat-cell.empty-space {
         visibility: hidden;
@@ -303,12 +315,6 @@
         border-color: var(--warning);
         background: #fef9c3;
       }
-      .no-students-msg {
-        text-align: center;
-        color: var(--text-light);
-        font-size: 0.9rem;
-        padding: 20px 0;
-      }
 
       .result-table {
         border-collapse: collapse;
@@ -327,8 +333,7 @@
         white-space: nowrap;
       }
       .result-table tr.empty-row td {
-        color: var(--text-light);
-        font-style: italic;
+        color: #c0c8d4;
       }
       .score-bar {
         display: flex;
@@ -499,7 +504,14 @@
         <div class="slot-slider-ticks" id="slot-slider-ticks"></div>
       </div>
 
-      <div id="seat-map-area"></div>
+      <div id="seat-map-area">
+        <div class="no-students-overlay hidden" id="no-students-msg">
+          この時間帯に生徒はいません
+        </div>
+        <div class="seat-map-container">
+          <div class="seat-map" id="seat-map"></div>
+        </div>
+      </div>
 
       <h3 style="font-size: 0.95rem; margin-top: 20px; margin-bottom: 8px">
         一覧表
@@ -510,9 +522,8 @@
     </div>
 
     <script>
-      const TOTAL_SEATS = 13;
-      const TOTAL_SLOTS = 13;
-
+      const TOTAL_SEATS = 13,
+        TOTAL_SLOTS = 13;
       const TIME_LABELS = [];
       {
         let h = 11,
@@ -552,7 +563,6 @@
         12: [3, 1],
         13: [3, 3],
       };
-
       const ADJ_SET = new Set();
       function addAdj(a, b) {
         ADJ_SET.add(`${Math.min(a, b)}-${Math.max(a, b)}`);
@@ -591,10 +601,11 @@
         3: [4, 4],
       };
 
-      let disabledSeats = new Set();
-      let schedule = {};
-      let result = null;
-      let visibleSlots = []; // スライダー用の表示対象コマインデックス
+      let disabledSeats = new Set(),
+        schedule = {},
+        result = null,
+        visibleSlots = [],
+        currentSlot = 0;
 
       function init() {
         const dsc = document.getElementById("disabled-seats");
@@ -723,7 +734,6 @@
           spread: parseInt(document.getElementById("w-spread").value),
         };
       }
-
       function getAvailableSeats() {
         const s = [];
         for (let i = 1; i <= TOTAL_SEATS; i++)
@@ -739,17 +749,15 @@
           if (!a) continue;
           const students = Object.keys(a),
             seats = Object.values(a);
-          if (weights.adjacent > 0) {
+          if (weights.adjacent > 0)
             for (let i = 0; i < seats.length; i++)
-              for (let j = i + 1; j < seats.length; j++) {
+              for (let j = i + 1; j < seats.length; j++)
                 if (isAdjacent(seats[i], seats[j])) {
                   penalty += weights.adjacent;
                   violations.push(
                     `コマ${slot + 1}: ${students[i]}(席${seats[i]}) と ${students[j]}(席${seats[j]}) が隣接`,
                   );
                 }
-              }
-          }
           if (weights.consecutive > 0 && slot > 0 && assignment[slot - 1]) {
             const prev = assignment[slot - 1];
             for (const [stu, seat] of Object.entries(a))
@@ -757,7 +765,7 @@
                 if (prevStu !== stu && prevSeat === seat) {
                   penalty += weights.consecutive;
                   violations.push(
-                    `コマ${slot}→${slot + 1}: 席${seat}に ${prevStu}→${stu} 連続別人`,
+                    `コマ${slot}→${slot + 1}: 席${seat}に${prevStu}→${stu} 連続別人`,
                   );
                 }
           }
@@ -771,7 +779,7 @@
                 );
               }
           }
-          if (weights.spread > 0 && seats.length >= 2) {
+          if (weights.spread > 0 && seats.length >= 2)
             for (let i = 0; i < seats.length; i++)
               for (let j = i + 1; j < seats.length; j++) {
                 const p1 = SEAT_POS[seats[i]],
@@ -779,7 +787,6 @@
                 const dist = Math.abs(p1[0] - p2[0]) + Math.abs(p1[1] - p2[1]);
                 if (dist <= 2) penalty += weights.spread * (3 - dist) * 0.3;
               }
-          }
         }
         return { penalty, violations };
       }
@@ -835,7 +842,6 @@
         const students = schedule[slot],
           a = mutated[slot],
           r = Math.random();
-
         if (r < 0.4 && students.length >= 2) {
           const i = Math.floor(Math.random() * students.length);
           let j = Math.floor(Math.random() * students.length);
@@ -875,7 +881,6 @@
       }
 
       function computeVisibleSlots() {
-        // 最初に生徒がいるコマ〜最後に生徒がいるコマの範囲（間の空コマ含む）
         let first = -1,
           last = -1;
         for (let i = 0; i < TOTAL_SLOTS; i++)
@@ -910,7 +915,6 @@
             );
             return;
           }
-
         let best = randomAssignment(schedule, availSeats);
         let bestScore = calcPenalty(best, weights).penalty;
         let current = cloneAssignment(best),
@@ -933,7 +937,6 @@
           temp *= cool;
           if (bestScore === 0) break;
         }
-
         result = best;
         visibleSlots = computeVisibleSlots();
         const { violations } = calcPenalty(best, weights);
@@ -948,25 +951,20 @@
       function displayResult(assignment, score, violations) {
         const section = document.getElementById("result-section");
         section.classList.remove("hidden");
-
         const scoreBar = document.getElementById("score-bar");
         const emoji = score === 0 ? "✅" : score < 5 ? "⚠️" : "🔴";
-        scoreBar.innerHTML = `<span class="score-label">${emoji} ペナルティスコア: ${score.toFixed(1)}</span>
-    <span class="score-detail">(0が理想)</span>`;
-
+        scoreBar.innerHTML = `<span class="score-label">${emoji} ペナルティスコア: ${score.toFixed(1)}</span><span class="score-detail">(0が理想)</span>`;
         const vList = document.getElementById("violation-list");
         vList.innerHTML =
           violations.length === 0
             ? '<li style="color:var(--success)">制約違反なし！</li>'
             : violations.map((v) => `<li>${v}</li>`).join("");
 
-        // スライダー設定
         const slider = document.getElementById("slot-slider");
         slider.min = 0;
         slider.max = visibleSlots.length - 1;
         slider.value = 0;
 
-        // 目盛り
         const ticks = document.getElementById("slot-slider-ticks");
         ticks.innerHTML = "";
         for (let i = 0; i < visibleSlots.length; i++) {
@@ -977,7 +975,6 @@
             sp.classList.add("has-students");
           ticks.appendChild(sp);
         }
-
         showSlotMap(visibleSlots[0]);
         buildResultTable(assignment);
       }
@@ -992,42 +989,42 @@
       }
 
       function showSlotMap(slot) {
-        const label = document.getElementById("slot-slider-label");
+        currentSlot = slot;
         const students = schedule[slot] || [];
         const hasStudents = students.length > 0;
-        label.innerHTML =
-          `コマ ${slot + 1}<span class="slot-sub">${TIME_LABELS[slot]}</span>` +
-          (hasStudents
-            ? `<span class="slot-sub">（${students.length}名）</span>`
-            : `<span class="slot-sub">（生徒なし）</span>`);
-
-        // スライダー位置も同期
         const idx = visibleSlots.indexOf(slot);
         if (idx >= 0) document.getElementById("slot-slider").value = idx;
 
-        const area = document.getElementById("seat-map-area");
+        // ラベル更新
+        const label = document.getElementById("slot-slider-label");
+        const countText = hasStudents
+          ? `（${students.length}名）`
+          : "（生徒なし）";
+        label.innerHTML = `<span class="slot-meta">コマ${slot + 1}</span> <span class="slot-time">${TIME_LABELS[slot]}</span> <span class="slot-meta">${countText}</span>`;
 
-        if (!hasStudents) {
-          area.innerHTML = `<div class="no-students-msg">この時間帯に生徒はいません</div>`;
-          return;
-        }
+        // 生徒なしメッセージ
+        const msg = document.getElementById("no-students-msg");
+        if (hasStudents) msg.classList.add("hidden");
+        else msg.classList.remove("hidden");
 
-        // 座席マップ描画
-        let mapHtml =
-          '<div class="seat-map" style="display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(4,1fr);gap:6px;max-width:500px;margin:0 auto;">';
+        // 座席マップ（常に表示）
+        const map = document.getElementById("seat-map");
+        map.innerHTML = "";
 
         const a = result[slot] || {};
         const seatToStudent = {};
         for (const [stu, seat] of Object.entries(a)) seatToStudent[seat] = stu;
 
         const violatedSeats = new Set();
-        const seats = Object.values(a);
-        for (let i = 0; i < seats.length; i++)
-          for (let j = i + 1; j < seats.length; j++)
-            if (isAdjacent(seats[i], seats[j])) {
-              violatedSeats.add(seats[i]);
-              violatedSeats.add(seats[j]);
-            }
+        if (hasStudents) {
+          const seats = Object.values(a);
+          for (let i = 0; i < seats.length; i++)
+            for (let j = i + 1; j < seats.length; j++)
+              if (isAdjacent(seats[i], seats[j])) {
+                violatedSeats.add(seats[i]);
+                violatedSeats.add(seats[j]);
+              }
+        }
 
         for (let row = 1; row <= 4; row++) {
           for (let col = 1; col <= 5; col++) {
@@ -1038,28 +1035,29 @@
                 break;
               }
 
-            let cls = "seat-cell",
-              style = `grid-row:${row};grid-column:${col};`,
-              inner = "";
+            const cell = document.createElement("div");
+            cell.classList.add("seat-cell");
+            cell.style.gridRow = row;
+            cell.style.gridColumn = col;
+
             if (!seatNum) {
-              cls += " empty-space";
-              inner = "&nbsp;";
+              cell.classList.add("empty-space");
+              cell.innerHTML = "&nbsp;";
             } else if (disabledSeats.has(seatNum)) {
-              cls += " disabled";
-              inner = `<span class="seat-num">席${seatNum}</span><span>✕</span>`;
+              cell.classList.add("disabled");
+              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span>✕</span>`;
             } else if (seatToStudent[seatNum]) {
-              cls += " occupied";
-              if (violatedSeats.has(seatNum)) cls += " has-violation";
-              inner = `<span class="seat-num">席${seatNum}</span><span class="seat-student">${seatToStudent[seatNum]}</span>`;
+              cell.classList.add("occupied");
+              if (violatedSeats.has(seatNum))
+                cell.classList.add("has-violation");
+              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span class="seat-student">${seatToStudent[seatNum]}</span>`;
             } else {
-              cls += " vacant";
-              inner = `<span class="seat-num">席${seatNum}</span><span>-</span>`;
+              cell.classList.add("vacant");
+              cell.innerHTML = `<span class="seat-num">席${seatNum}</span><span>-</span>`;
             }
-            mapHtml += `<div class="${cls}" style="${style}">${inner}</div>`;
+            map.appendChild(cell);
           }
         }
-        mapHtml += "</div>";
-        area.innerHTML = mapHtml;
       }
 
       function buildResultTable(assignment) {
@@ -1086,7 +1084,7 @@
             } else if (seatToStudent[s]) {
               html += `<td style="background:#dbeafe;font-weight:600">${seatToStudent[s]}</td>`;
             } else {
-              html += `<td>${hasStudents ? "" : ""}</td>`;
+              html += "<td></td>";
             }
           }
           html += "</tr>";
