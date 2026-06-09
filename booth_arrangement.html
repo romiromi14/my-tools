@@ -19,6 +19,8 @@
         --seat-empty: #f1f5f9;
         --seat-used: #dbeafe;
         --seat-disabled: #fecaca;
+        --tag-teach: #dbeafe;
+        --tag-drill: #fef9c3;
       }
       * {
         box-sizing: border-box;
@@ -102,13 +104,14 @@
         background: var(--seat-disabled);
         text-decoration: line-through;
       }
-      .seats-setting-grid.priority-seats label:has(input:checked) {
+      .seats-setting-grid.pri-teach label:has(input:checked) {
+        background: #dbeafe;
+      }
+      .seats-setting-grid.pri-drill label:has(input:checked) {
         background: #d1fae5;
       }
       .schedule-table-wrap {
         overflow-x: auto;
-        max-height: 400px;
-        overflow-y: auto;
         border: 1px solid var(--border);
         border-radius: 8px;
       }
@@ -187,6 +190,84 @@
         color: var(--text-light);
         margin-top: 4px;
       }
+      .paste-area textarea {
+        width: 100%;
+        min-height: 120px;
+        font-family: "Courier New", monospace;
+        font-size: 0.75rem;
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        resize: vertical;
+        tab-size: 8;
+      }
+      .paste-config {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 10px 0;
+      }
+      .paste-config label {
+        font-size: 0.85rem;
+        color: var(--text);
+      }
+      .paste-config input[type="text"] {
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.85rem;
+        width: 200px;
+      }
+      .paste-preview {
+        margin-top: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .paste-preview table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.8rem;
+      }
+      .paste-preview th,
+      .paste-preview td {
+        border: 1px solid var(--border);
+        padding: 4px 8px;
+        text-align: left;
+      }
+      .paste-preview th {
+        background: #eef2ff;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        text-align: center;
+      }
+      .paste-preview .tag {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
+      .paste-preview .tag-teach {
+        background: var(--tag-teach);
+        color: var(--primary);
+      }
+      .paste-preview .tag-drill {
+        background: var(--tag-drill);
+        color: #92400e;
+      }
+      .paste-preview .tag-excluded {
+        background: #fee2e2;
+        color: #b91c1c;
+        text-decoration: line-through;
+      }
+      .paste-preview td.excluded {
+        color: #ccc;
+        text-decoration: line-through;
+      }
       .btn-group {
         display: flex;
         gap: 10px;
@@ -216,7 +297,10 @@
       .btn-secondary:hover {
         background: #cbd5e1;
       }
-
+      .btn-sm {
+        padding: 6px 16px;
+        font-size: 0.85rem;
+      }
       .optimality-toggle {
         display: inline-flex;
         align-items: center;
@@ -287,7 +371,6 @@
       .optimality-detail ul li.issue::before {
         color: var(--warning);
       }
-
       .slot-slider-wrap {
         margin-bottom: 16px;
       }
@@ -385,7 +468,17 @@
         color: var(--text-light);
         border-color: var(--border);
       }
-      .seat-cell.occupied {
+      .seat-cell.occupied-teach {
+        background: var(--tag-teach);
+        color: var(--primary);
+        border-color: #93c5fd;
+      }
+      .seat-cell.occupied-drill {
+        background: var(--tag-drill);
+        color: #92400e;
+        border-color: #fcd34d;
+      }
+      .seat-cell.occupied-unknown {
         background: var(--seat-used);
         color: var(--primary);
         border-color: #93c5fd;
@@ -397,10 +490,6 @@
       .seat-cell .seat-student {
         font-size: 1rem;
         font-weight: 700;
-      }
-      .seat-cell.has-violation {
-        border-color: var(--warning);
-        background: #fef9c3;
       }
       .result-table {
         border-collapse: collapse;
@@ -420,6 +509,18 @@
       }
       .result-table tr.empty-row td {
         color: #c0c8d4;
+      }
+      .result-table td.cell-teach {
+        background: var(--tag-teach);
+        font-weight: 600;
+      }
+      .result-table td.cell-drill {
+        background: var(--tag-drill);
+        font-weight: 600;
+      }
+      .result-table td.cell-unknown {
+        background: var(--seat-used);
+        font-weight: 600;
       }
       .tab-bar {
         display: flex;
@@ -451,6 +552,25 @@
       }
       .hidden {
         display: none !important;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+        font-size: 0.8rem;
+        color: var(--text-light);
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .legend-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid var(--border);
       }
       @media (max-width: 640px) {
         body {
@@ -514,20 +634,55 @@
       </h3>
       <div class="seats-setting-grid disabled-seats" id="disabled-seats"></div>
       <h3 style="font-size: 0.9rem; margin-top: 12px; margin-bottom: 6px">
-        優先座席（空いていれば優先的に使う）
+        指導 優先座席
       </h3>
-      <div class="seats-setting-grid priority-seats" id="priority-seats"></div>
+      <div class="seats-setting-grid pri-teach" id="pri-teach"></div>
+      <h3 style="font-size: 0.9rem; margin-top: 12px; margin-bottom: 6px">
+        演習 優先座席
+      </h3>
+      <div class="seats-setting-grid pri-drill" id="pri-drill"></div>
     </div>
 
     <div class="section">
       <h2>📝 生徒スケジュール入力</h2>
       <div class="tab-bar">
-        <button class="active" onclick="switchInputTab('quick')">
-          まとめて入力
-        </button>
+        <button onclick="switchInputTab('paste')">コピペ入力</button>
+        <button onclick="switchInputTab('quick')">まとめて入力</button>
         <button onclick="switchInputTab('table')">テーブル入力</button>
       </div>
-      <div id="tab-quick" class="tab-content active">
+      <div id="tab-paste" class="tab-content">
+        <div class="paste-area">
+          <textarea
+            id="paste-text"
+            placeholder="管理システムからコピーしたデータをここに貼り付け"
+          ></textarea>
+        </div>
+        <div class="paste-config">
+          <label>除外ワード:</label>
+          <input
+            type="text"
+            id="exclude-words"
+            placeholder="トレD, 別のワード"
+          />
+          <span style="font-size: 0.75rem; color: var(--text-light)"
+            >カンマ区切り。このワードを含む行を除外します。</span
+          >
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" onclick="parsePasteData()">
+            読み取り
+          </button>
+        </div>
+        <div id="paste-preview-wrap" class="hidden">
+          <div class="paste-preview" id="paste-preview"></div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="applyParsedData()">
+              テーブルに反映
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="tab-quick" class="tab-content">
         <div class="quick-input">
           <textarea
             id="quick-text"
@@ -565,17 +720,15 @@
 
     <div class="section hidden" id="result-section">
       <h2>📊 配置結果</h2>
-
       <div class="optimality-toggle" id="opt-toggle" onclick="toggleDetail()">
-        <span>最適度:</span>
-        <span class="opt-pct" id="opt-pct">100%</span>
-        <span class="opt-arrow">▶</span>
+        <span>最適度:</span><span class="opt-pct" id="opt-pct">100%</span
+        ><span class="opt-arrow">▶</span>
       </div>
       <div class="optimality-detail" id="opt-detail">
         <p id="opt-detail-summary"></p>
         <ul id="opt-detail-list"></ul>
       </div>
-
+      <div class="legend" id="result-legend"></div>
       <div class="slot-slider-wrap">
         <div class="slot-slider-label" id="slot-slider-label"></div>
         <div class="slot-slider-track">
@@ -599,8 +752,9 @@
     <script>
       const TOTAL_SEATS = 13,
         TOTAL_SLOTS = 13,
-        STORAGE_KEY = "juku-seat-settings";
-      const TIME_LABELS = [];
+        STORAGE_KEY = "juku-seat-settings-v2";
+      const TIME_LABELS = [],
+        SLOT_END_TIMES = [];
       {
         let h = 11,
           m = 0;
@@ -613,9 +767,10 @@
             eh += Math.floor(em / 60);
             em %= 60;
           }
-          TIME_LABELS.push(
-            `${sh}:${sm}-${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
-          );
+          const endStr =
+            String(eh).padStart(2, "0") + ":" + String(em).padStart(2, "0");
+          TIME_LABELS.push(`${sh}:${sm}-${endStr}`);
+          SLOT_END_TIMES.push(endStr);
           m += 50;
           if (m >= 60) {
             h += Math.floor(m / 60);
@@ -623,6 +778,7 @@
           }
         }
       }
+
       const SEAT_POS = {
         1: [0, 0],
         2: [0, 1],
@@ -676,16 +832,24 @@
       };
 
       let disabledSeats = new Set(),
-        prioritySeats = new Set(),
-        schedule = {},
+        priTeach = new Set(),
+        priDrill = new Set();
+      let schedule = {},
+        slotStudentType = {},
         result = null,
-        visibleSlots = [];
+        visibleSlots = [],
+        parsedEntries = [],
+        hasTypeData = false;
+
+      // slotStudentType[slot][studentName] = 'teach' | 'drill'
 
       function saveSettings() {
         const data = {
           weights: {},
           disabled: [...disabledSeats],
-          priority: [...prioritySeats],
+          priTeach: [...priTeach],
+          priDrill: [...priDrill],
+          excludeWords: document.getElementById("exclude-words").value,
         };
         ["w-adjacent", "w-consecutive", "w-samestudent", "w-spread"].forEach(
           (id) => {
@@ -717,27 +881,41 @@
               );
               if (cb) cb.checked = true;
             });
-          if (data.priority)
-            data.priority.forEach((s) => {
-              prioritySeats.add(s);
+          if (data.priTeach)
+            data.priTeach.forEach((s) => {
+              priTeach.add(s);
               const cb = document.querySelector(
-                `#priority-seats input[value="${s}"]`,
+                `#pri-teach input[value="${s}"]`,
               );
               if (cb) cb.checked = true;
             });
+          if (data.priDrill)
+            data.priDrill.forEach((s) => {
+              priDrill.add(s);
+              const cb = document.querySelector(
+                `#pri-drill input[value="${s}"]`,
+              );
+              if (cb) cb.checked = true;
+            });
+          if (data.excludeWords)
+            document.getElementById("exclude-words").value = data.excludeWords;
         } catch (e) {}
       }
 
       function init() {
         const dsc = document.getElementById("disabled-seats"),
-          psc = document.getElementById("priority-seats");
+          ptc = document.getElementById("pri-teach"),
+          pdc = document.getElementById("pri-drill");
         for (let s = 1; s <= TOTAL_SEATS; s++) {
           let lbl = document.createElement("label");
-          lbl.innerHTML = `<input type="checkbox" value="${s}" onchange="toggleDisabledSeat(${s},this.checked)"> 座席${s}`;
+          lbl.innerHTML = `<input type="checkbox" value="${s}" onchange="toggleSet('disabled',${s},this.checked)"> 座席${s}`;
           dsc.appendChild(lbl);
           lbl = document.createElement("label");
-          lbl.innerHTML = `<input type="checkbox" value="${s}" onchange="togglePrioritySeat(${s},this.checked)"> 座席${s}`;
-          psc.appendChild(lbl);
+          lbl.innerHTML = `<input type="checkbox" value="${s}" onchange="toggleSet('priTeach',${s},this.checked)"> 座席${s}`;
+          ptc.appendChild(lbl);
+          lbl = document.createElement("label");
+          lbl.innerHTML = `<input type="checkbox" value="${s}" onchange="toggleSet('priDrill',${s},this.checked)"> 座席${s}`;
+          pdc.appendChild(lbl);
         }
         ["w-adjacent", "w-consecutive", "w-samestudent", "w-spread"].forEach(
           (id) => {
@@ -750,29 +928,32 @@
           },
         );
         document
+          .getElementById("exclude-words")
+          .addEventListener("change", saveSettings);
+        document
           .getElementById("slot-slider")
           .addEventListener("input", function () {
             showSlotMap(visibleSlots[parseInt(this.value)]);
           });
         buildScheduleTable();
         loadSettings();
+        switchInputTab("paste");
       }
 
-      function toggleDisabledSeat(s, c) {
-        if (c) disabledSeats.add(s);
-        else disabledSeats.delete(s);
-        saveSettings();
-      }
-      function togglePrioritySeat(s, c) {
-        if (c) prioritySeats.add(s);
-        else prioritySeats.delete(s);
+      function toggleSet(name, s, c) {
+        const set =
+          name === "disabled"
+            ? disabledSeats
+            : name === "priTeach"
+              ? priTeach
+              : priDrill;
+        if (c) set.add(s);
+        else set.delete(s);
         saveSettings();
       }
       function toggleDetail() {
-        const t = document.getElementById("opt-toggle"),
-          d = document.getElementById("opt-detail");
-        t.classList.toggle("open");
-        d.classList.toggle("open");
+        document.getElementById("opt-toggle").classList.toggle("open");
+        document.getElementById("opt-detail").classList.toggle("open");
       }
 
       function buildScheduleTable() {
@@ -797,17 +978,157 @@
         document
           .querySelectorAll(".tab-content")
           .forEach((c) => c.classList.remove("active"));
-        if (tab === "quick") {
-          document
-            .querySelector(".tab-bar button:nth-child(1)")
-            .classList.add("active");
-          document.getElementById("tab-quick").classList.add("active");
-        } else {
-          document
-            .querySelector(".tab-bar button:nth-child(2)")
-            .classList.add("active");
-          document.getElementById("tab-table").classList.add("active");
+        const tabs = { paste: 0, quick: 1, table: 2 };
+        document
+          .querySelector(`.tab-bar button:nth-child(${tabs[tab] + 1})`)
+          .classList.add("active");
+        document.getElementById("tab-" + tab).classList.add("active");
+      }
+
+      function parsePasteData() {
+        const text = document.getElementById("paste-text").value;
+        const excludeRaw = document.getElementById("exclude-words").value;
+        const excludeWords = excludeRaw
+          .split(/[,、，]/)
+          .map((w) => w.trim())
+          .filter((w) => w);
+        saveSettings();
+        const lines = text.split("\n");
+        const entries = [];
+        for (const line of lines) {
+          const cols = line.split("\t");
+          if (cols.length < 6) continue;
+          let timeRange = null,
+            category = null,
+            studentName = null,
+            excluded = false,
+            excludeReason = "";
+          for (const col of cols) {
+            const m = col.trim().match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
+            if (m) timeRange = col.trim();
+          }
+          if (!timeRange) continue;
+          for (const col of cols) {
+            const c = col.trim();
+            if (c === "指導" || c === "演習" || c === "体験") category = c;
+          }
+          if (!category) continue;
+          if (cols.some((c) => c.trim() === "開閉校")) continue;
+          const catIdx = cols.findIndex((c) => c.trim() === category);
+          if (catIdx >= 0 && catIdx + 1 < cols.length)
+            studentName = cols[catIdx + 1].trim();
+          if (!studentName) continue;
+          if (studentName.includes("教室")) continue;
+          const fullLine = cols.join("\t");
+          if (fullLine.includes("変更・振替")) {
+            excluded = true;
+            excludeReason = "変更・振替";
+          }
+          if (fullLine.includes("当日キャンセル")) {
+            excluded = true;
+            excludeReason = "当日キャンセル";
+          }
+          for (const ew of excludeWords) {
+            if (fullLine.includes(ew)) {
+              excluded = true;
+              excludeReason = ew;
+              break;
+            }
+          }
+          const endTime = timeRange.split("-")[1];
+          const slotIdx = SLOT_END_TIMES.indexOf(endTime);
+          if (slotIdx < 0) continue;
+          const type = category === "演習" ? "drill" : "teach";
+          entries.push({
+            slotIdx,
+            timeRange,
+            category,
+            studentName,
+            type,
+            excluded,
+            excludeReason,
+          });
         }
+        parsedEntries = entries;
+        renderPastePreview(entries);
+        document
+          .getElementById("paste-preview-wrap")
+          .classList.remove("hidden");
+        setTimeout(() => {
+          const previewWrap = document.getElementById("paste-preview-wrap");
+          const applyBtn = previewWrap.querySelector(".btn");
+          if (applyBtn)
+            applyBtn.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 150);
+      }
+
+      function renderPastePreview(entries) {
+        const wrap = document.getElementById("paste-preview");
+        if (!entries.length) {
+          wrap.innerHTML =
+            '<p style="padding:12px;color:var(--text-light);">読み取れるデータがありませんでした。</p>';
+          return;
+        }
+        const grouped = {};
+        for (const e of entries) {
+          if (!grouped[e.slotIdx]) grouped[e.slotIdx] = [];
+          grouped[e.slotIdx].push(e);
+        }
+        let html =
+          "<table><thead><tr><th>コマ</th><th>時間帯</th><th>区分</th><th>生徒名</th><th>状態</th></tr></thead><tbody>";
+        const slots = Object.keys(grouped)
+          .map(Number)
+          .sort((a, b) => a - b);
+        for (const s of slots) {
+          const list = grouped[s];
+          for (let i = 0; i < list.length; i++) {
+            const e = list[i];
+            const tagCls = e.excluded
+              ? "tag-excluded"
+              : e.type === "teach"
+                ? "tag-teach"
+                : "tag-drill";
+            const tdCls = e.excluded ? "excluded" : "";
+            html += `<tr>`;
+            if (i === 0)
+              html += `<td rowspan="${list.length}">${s + 1}</td><td rowspan="${list.length}" style="white-space:nowrap">${TIME_LABELS[s]}</td>`;
+            html += `<td><span class="tag ${tagCls}">${e.category}</span></td><td class="${tdCls}">${e.studentName}</td><td class="${tdCls}" style="font-size:0.75rem">${e.excluded ? e.excludeReason : "✓"}</td></tr>`;
+          }
+        }
+        wrap.innerHTML = html + "</tbody></table>";
+      }
+
+      function applyParsedData() {
+        document
+          .querySelectorAll("#schedule-table input[type=text]")
+          .forEach((inp) => (inp.value = ""));
+        slotStudentType = {};
+        hasTypeData = true;
+        const active = parsedEntries.filter((e) => !e.excluded);
+        const grouped = {};
+        for (const e of active) {
+          if (!grouped[e.slotIdx]) grouped[e.slotIdx] = [];
+          if (!grouped[e.slotIdx].some((x) => x.studentName === e.studentName))
+            grouped[e.slotIdx].push(e);
+        }
+        for (const [slot, list] of Object.entries(grouped)) {
+          const slotNum = parseInt(slot);
+          if (!slotStudentType[slotNum]) slotStudentType[slotNum] = {};
+          list.forEach((e, idx) => {
+            const name = e.studentName.trim();
+            const inp = document.querySelector(
+              `input[data-slot="${slotNum}"][data-idx="${idx}"]`,
+            );
+            if (inp) inp.value = name;
+            slotStudentType[slotNum][name] = e.type;
+          });
+        }
+        switchInputTab("table");
+        setTimeout(() => {
+          document
+            .getElementById("run-section")
+            .scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 150);
       }
 
       function applyQuickInput() {
@@ -815,6 +1136,8 @@
         document
           .querySelectorAll("#schedule-table input[type=text]")
           .forEach((inp) => (inp.value = ""));
+        slotStudentType = {};
+        hasTypeData = false;
         for (const line of text.split("\n").filter((l) => l.trim())) {
           const match = line.match(/^\s*(\d+)\s*[:：]\s*(.+)$/);
           if (!match) continue;
@@ -841,6 +1164,10 @@
 
       function readSchedule() {
         schedule = {};
+        const oldTypes = {};
+        for (const s in slotStudentType) {
+          oldTypes[s] = { ...slotStudentType[s] };
+        }
         for (let i = 0; i < TOTAL_SLOTS; i++) {
           const students = [];
           for (let j = 0; j < 13; j++) {
@@ -850,17 +1177,30 @@
             if (inp && inp.value.trim()) students.push(inp.value.trim());
           }
           schedule[i] = students;
+          if (hasTypeData && oldTypes[i]) {
+            slotStudentType[i] = {};
+            for (const name of students) {
+              if (oldTypes[i][name]) {
+                slotStudentType[i][name] = oldTypes[i][name];
+              }
+            }
+          }
         }
       }
 
       function clearAll() {
         document.getElementById("quick-text").value = "";
+        document.getElementById("paste-text").value = "";
         document
           .querySelectorAll("#schedule-table input[type=text]")
           .forEach((inp) => {
             inp.value = "";
           });
         document.getElementById("result-section").classList.add("hidden");
+        document.getElementById("paste-preview-wrap").classList.add("hidden");
+        parsedEntries = [];
+        slotStudentType = {};
+        hasTypeData = false;
         result = null;
       }
 
@@ -879,14 +1219,33 @@
         return s;
       }
 
-      // --- Scoring (for optimization) ---
+      function getTypeForSlot(slot, studentName) {
+        if (!studentName) return null;
+        const name = studentName.trim();
+        // 数値キーでもう文字列キーでも両方試す
+        const entry = slotStudentType[slot] || slotStudentType[String(slot)];
+        if (!entry) return null;
+        if (entry[name]) return entry[name];
+        // フォールバック: 部分一致（空白差異の吸収）
+        for (const [key, val] of Object.entries(entry)) {
+          if (key.trim() === name) return val;
+        }
+        return null;
+      }
+
+      function getPriSeatsForSlot(slot, studentName) {
+        const type = getTypeForSlot(slot, studentName);
+        if (type === "teach") return priTeach;
+        if (type === "drill") return priDrill;
+        return new Set();
+      }
+
       function calcRawPenalty(assignment, weights) {
         let penalty = 0;
         for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
           const a = assignment[slot];
           if (!a) continue;
-          const seats = Object.values(a),
-            students = Object.keys(a);
+          const seats = Object.values(a);
           if (weights.adjacent > 0)
             for (let i = 0; i < seats.length; i++)
               for (let j = i + 1; j < seats.length; j++)
@@ -916,7 +1275,6 @@
         return penalty;
       }
 
-      // --- Human-readable report (weight-independent) ---
       function calcReport(assignment) {
         const issues = [];
         let adjCount = 0,
@@ -968,23 +1326,18 @@
         return { issues, adjCount, consCount, moveCount, closeCount };
       }
 
-      // --- Optimality percentage ---
       function calcOptimality(assignment, weights) {
         const penalty = calcRawPenalty(assignment, weights);
-        // Calculate theoretical max penalty (worst case) for normalization
         let maxPenalty = 0;
         for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
           const n = (schedule[slot] || []).length;
           if (!n) continue;
           const pairs = (n * (n - 1)) / 2;
-          // Adjacent: worst case every pair is adjacent
           maxPenalty += weights.adjacent * pairs;
-          // Consecutive: worst case every student sits in prev student's seat
           if (slot > 0) {
             const pn = (schedule[slot - 1] || []).length;
             maxPenalty += weights.consecutive * Math.min(n, pn);
           }
-          // Same student: worst case every continuing student moves
           if (slot > 0) {
             const prev = schedule[slot - 1] || [];
             const cont = (schedule[slot] || []).filter((s) =>
@@ -992,22 +1345,18 @@
             ).length;
             maxPenalty += weights.samestudent * cont;
           }
-          // Spread: worst case
           maxPenalty += weights.spread * pairs * 0.9;
         }
         if (maxPenalty === 0) return 100;
-        const pct = Math.max(
+        return Math.max(
           0,
           Math.min(100, Math.round((1 - penalty / maxPenalty) * 100)),
         );
-        return pct;
       }
 
       function randomAssignment(schedule, availSeats) {
         const assignment = {},
           sf = {};
-        const ps = availSeats.filter((s) => prioritySeats.has(s)),
-          nps = availSeats.filter((s) => !prioritySeats.has(s));
         for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
           const students = schedule[slot] || [];
           if (!students.length) {
@@ -1021,14 +1370,28 @@
               a[stu] = sf[stu];
               us.add(sf[stu]);
             }
-          const fp = ps
-              .filter((s) => !us.has(s))
-              .sort(() => Math.random() - 0.5),
-            fn = nps.filter((s) => !us.has(s)).sort(() => Math.random() - 0.5),
-            free = [...fp, ...fn];
-          let fi = 0;
-          for (const stu of students)
-            if (a[stu] === undefined && fi < free.length) a[stu] = free[fi++];
+          const remaining = students.filter((s) => a[s] === undefined);
+          const freeSeats = availSeats.filter((s) => !us.has(s));
+          const assigned = new Set();
+          for (const stu of remaining) {
+            const pri = getPriSeatsForSlot(slot, stu);
+            const priAvail = freeSeats.filter(
+              (s) => pri.has(s) && !assigned.has(s),
+            );
+            if (priAvail.length) {
+              const pick =
+                priAvail[Math.floor(Math.random() * priAvail.length)];
+              a[stu] = pick;
+              assigned.add(pick);
+              continue;
+            }
+            const any = freeSeats.filter((s) => !assigned.has(s));
+            if (any.length) {
+              const pick = any[Math.floor(Math.random() * any.length)];
+              a[stu] = pick;
+              assigned.add(pick);
+            }
+          }
           assignment[slot] = a;
           const cur = new Set(students);
           for (const k of Object.keys(sf)) if (!cur.has(k)) delete sf[k];
@@ -1150,9 +1513,7 @@
         }
         result = best;
         visibleSlots = computeVisibleSlots();
-        const pct = calcOptimality(best, weights);
-        const report = calcReport(best);
-        displayResult(best, pct, report);
+        displayResult(best, calcOptimality(best, weights), calcReport(best));
         setTimeout(() => {
           document
             .getElementById("result-section")
@@ -1164,16 +1525,14 @@
         document.getElementById("result-section").classList.remove("hidden");
         document.getElementById("opt-toggle").classList.remove("open");
         document.getElementById("opt-detail").classList.remove("open");
-
         const pctEl = document.getElementById("opt-pct");
         pctEl.textContent = pct + "%";
         pctEl.className =
           "opt-pct " + (pct >= 90 ? "high" : pct >= 60 ? "mid" : "low");
-
         const summary = document.getElementById("opt-detail-summary");
-        if (report.issues.length === 0) {
+        if (report.issues.length === 0)
           summary.textContent = "すべての制約を満たしています。";
-        } else {
+        else {
           const parts = [];
           if (report.adjCount) parts.push(`隣接: ${report.adjCount}件`);
           if (report.consCount) parts.push(`連続別人: ${report.consCount}件`);
@@ -1181,14 +1540,19 @@
           if (report.closeCount) parts.push(`近接: ${report.closeCount}件`);
           summary.textContent = "内訳: " + parts.join("、");
         }
+        document.getElementById("opt-detail-list").innerHTML =
+          report.issues.length === 0
+            ? '<li style="color:var(--success)">問題なし</li>'
+            : report.issues
+                .map((i) => `<li class="issue">${i.text}</li>`)
+                .join("");
 
-        const list = document.getElementById("opt-detail-list");
-        if (report.issues.length === 0) {
-          list.innerHTML = '<li style="color:var(--success)">問題なし</li>';
+        // Legend
+        const legend = document.getElementById("result-legend");
+        if (hasTypeData) {
+          legend.innerHTML = `<div class="legend-item"><div class="legend-swatch" style="background:var(--tag-teach)"></div>指導</div><div class="legend-item"><div class="legend-swatch" style="background:var(--tag-drill)"></div>演習</div>`;
         } else {
-          list.innerHTML = report.issues
-            .map((i) => `<li class="issue">${i.text}</li>`)
-            .join("");
+          legend.innerHTML = "";
         }
 
         const slider = document.getElementById("slot-slider");
@@ -1229,16 +1593,6 @@
         const a = result[slot] || {},
           s2s = {};
         for (const [stu, seat] of Object.entries(a)) s2s[seat] = stu;
-        const vs = new Set();
-        if (has) {
-          const seats = Object.values(a);
-          for (let i = 0; i < seats.length; i++)
-            for (let j = i + 1; j < seats.length; j++)
-              if (isAdjacent(seats[i], seats[j])) {
-                vs.add(seats[i]);
-                vs.add(seats[j]);
-              }
-        }
         for (let row = 1; row <= 4; row++)
           for (let col = 1; col <= 5; col++) {
             let sn = null;
@@ -1258,8 +1612,15 @@
               c.classList.add("disabled");
               c.innerHTML = `<span class="seat-num">席${sn}</span><span>✕</span>`;
             } else if (s2s[sn]) {
-              c.classList.add("occupied");
-              if (vs.has(sn)) c.classList.add("has-violation");
+              const type = getTypeForSlot(slot, s2s[sn]);
+              const cls =
+                type === "teach"
+                  ? "occupied-teach"
+                  : type === "drill"
+                    ? "occupied-drill"
+                    : "occupied-unknown";
+              c.classList.add(cls);
+
               c.innerHTML = `<span class="seat-num">席${sn}</span><span class="seat-student">${s2s[sn]}</span>`;
             } else {
               c.classList.add("vacant");
@@ -1284,11 +1645,18 @@
           const has = schedule[slot] && schedule[slot].length > 0;
           html += `<tr class="${has ? "" : "empty-row"}"><td>${slot + 1}</td><td style="white-space:nowrap">${TIME_LABELS[slot]}</td>`;
           for (let s = 1; s <= TOTAL_SEATS; s++) {
-            if (disabledSeats.has(s))
+            if (disabledSeats.has(s)) {
               html += '<td style="background:#fee2e2">✕</td>';
-            else if (s2s[s])
-              html += `<td style="background:#dbeafe;font-weight:600">${s2s[s]}</td>`;
-            else html += "<td></td>";
+            } else if (s2s[s]) {
+              const type = getTypeForSlot(slot, s2s[s]);
+              const cls =
+                type === "teach"
+                  ? "cell-teach"
+                  : type === "drill"
+                    ? "cell-drill"
+                    : "cell-unknown";
+              html += `<td class="${cls}">${s2s[s]}</td>`;
+            } else html += "<td></td>";
           }
           html += "</tr>";
         }
