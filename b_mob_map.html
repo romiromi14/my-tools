@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>画像整理ビューア</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Hiragino Sans", "Meiryo", sans-serif;
+        background: #f4f4f6;
+        color: #333;
+        padding: 20px;
+      }
+
+      /* ===== タブ（大タイトル） ===== */
+      .tab-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        border-bottom: 2px solid #ccc;
+        margin-bottom: 20px;
+      }
+      .tab-buttons button {
+        padding: 10px 20px;
+        border: none;
+        background: #e0e0e6;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+        border-radius: 6px 6px 0 0;
+        transition: background 0.2s;
+      }
+      .tab-buttons button:hover {
+        background: #d0d0d8;
+      }
+      .tab-buttons button.active {
+        background: #4a90d9;
+        color: #fff;
+      }
+
+      /* ===== タブの中身 ===== */
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      .set-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+
+      /* ===== 2枚セット（中タイトル） ===== */
+      .pair {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      }
+      .pair-title {
+        font-size: 14px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+        color: #444;
+      }
+      .pair-images {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      /* ===== 個別画像（小タイトル） ===== */
+      .cell {
+        text-align: center;
+      }
+      .cell-title {
+        font-size: 12px;
+        margin-bottom: 4px;
+        color: #666;
+      }
+      .cell .thumb {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #fafafa;
+        display: block;
+        cursor: zoom-in; /* 拡大できると分かるカーソル */
+        transition: transform 0.15s;
+      }
+      .cell .thumb:hover {
+        transform: scale(1.03);
+      }
+
+      /* ===== ライトボックス（拡大表示） ===== */
+      .lightbox {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        cursor: zoom-out;
+      }
+      .lightbox.open {
+        display: flex;
+      }
+      .lightbox img {
+        max-width: 90vw;
+        max-height: 85vh;
+        object-fit: contain;
+        border-radius: 4px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+      }
+      .lightbox .caption {
+        color: #fff;
+        margin-top: 14px;
+        font-size: 15px;
+      }
+      .lightbox .close {
+        position: absolute;
+        top: 18px;
+        right: 24px;
+        color: #fff;
+        font-size: 36px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 1;
+        user-select: none;
+      }
+
+      @media (max-width: 900px) {
+        .set-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 600px) {
+        .set-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ========== タブボタン（大タイトル） ========== -->
+    <div class="tab-buttons">
+      <button class="active" onclick="showTab('tab1', this)">
+        大タイトル1
+      </button>
+      <button onclick="showTab('tab2', this)">大タイトル2</button>
+      <button onclick="showTab('tab3', this)">大タイトル3</button>
+    </div>
+
+    <!-- ========== タブ1 ========== -->
+    <div id="tab1" class="tab-panel active">
+      <div class="set-grid">
+        <div class="pair">
+          <div class="pair-title">中タイトル A</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル A-1</div>
+              <img class="thumb" src="images/a1.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル A-2</div>
+              <img class="thumb" src="images/a2.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pair">
+          <div class="pair-title">中タイトル B</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル B-1</div>
+              <img class="thumb" src="images/b1.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル B-2</div>
+              <img class="thumb" src="images/b2.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pair">
+          <div class="pair-title">中タイトル C</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル C-1</div>
+              <img class="thumb" src="images/c1.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル C-2</div>
+              <img class="thumb" src="images/c2.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pair">
+          <div class="pair-title">中タイトル D</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル D-1</div>
+              <img class="thumb" src="images/d1.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル D-2</div>
+              <img class="thumb" src="images/d2.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pair">
+          <div class="pair-title">中タイトル E</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル E-1</div>
+              <img class="thumb" src="images/e1.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル E-2</div>
+              <img class="thumb" src="images/e2.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pair">
+          <div class="pair-title">中タイトル F</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル F-1</div>
+              <img class="thumb" src="images/f1.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル F-2</div>
+              <img class="thumb" src="images/f2.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== タブ2 ========== -->
+    <div id="tab2" class="tab-panel">
+      <div class="set-grid">
+        <div class="pair">
+          <div class="pair-title">中タイトル</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル</div>
+              <img class="thumb" src="images/xxx.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル</div>
+              <img class="thumb" src="images/xxx.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+        <!-- 必要なだけ .pair を増やしてね -->
+      </div>
+    </div>
+
+    <!-- ========== タブ3 ========== -->
+    <div id="tab3" class="tab-panel">
+      <div class="set-grid">
+        <div class="pair">
+          <div class="pair-title">中タイトル</div>
+          <div class="pair-images">
+            <div class="cell">
+              <div class="cell-title">小タイトル</div>
+              <img class="thumb" src="images/xxx.jpg" alt="" />
+            </div>
+            <div class="cell">
+              <div class="cell-title">小タイトル</div>
+              <img class="thumb" src="images/xxx.jpg" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ライトボックス（拡大表示用） ========== -->
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+      <span class="close">&times;</span>
+      <img id="lightbox-img" src="" alt="" />
+      <div id="lightbox-caption" class="caption"></div>
+    </div>
+
+    <script>
+      function showTab(id, btn) {
+        document
+          .querySelectorAll(".tab-panel")
+          .forEach((p) => p.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-buttons button")
+          .forEach((b) => b.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+        btn.classList.add("active");
+      }
+
+      // 拡大表示
+      const lb = document.getElementById("lightbox");
+      const lbImg = document.getElementById("lightbox-img");
+      const lbCap = document.getElementById("lightbox-caption");
+
+      // すべてのサムネにクリックイベントを付与
+      document.querySelectorAll(".thumb").forEach((img) => {
+        img.addEventListener("click", () => {
+          lbImg.src = img.src;
+          // 小タイトルをキャプションとして表示
+          const title = img.closest(".cell").querySelector(".cell-title");
+          lbCap.textContent = title ? title.textContent : "";
+          lb.classList.add("open");
+        });
+      });
+
+      function closeLightbox() {
+        lb.classList.remove("open");
+        lbImg.src = "";
+      }
+
+      // Escキーでも閉じる
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeLightbox();
+      });
+    </script>
+  </body>
+</html>
