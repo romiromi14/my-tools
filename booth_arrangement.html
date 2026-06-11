@@ -21,6 +21,7 @@
         --seat-disabled: #fecaca;
         --tag-teach: #dbeafe;
         --tag-drill: #fef9c3;
+        --fixed: #c084fc;
       }
       * {
         box-sizing: border-box;
@@ -491,6 +492,10 @@
         font-size: 1rem;
         font-weight: 700;
       }
+      .seat-cell.fixed-seat {
+        border-color: var(--fixed);
+        box-shadow: 0 0 0 2px var(--fixed);
+      }
       .result-table {
         border-collapse: collapse;
         width: 100%;
@@ -521,6 +526,43 @@
       .result-table td.cell-unknown {
         background: var(--seat-used);
         font-weight: 600;
+      }
+      .result-table td.cell-fixed {
+        outline: 2px solid var(--fixed);
+        outline-offset: -2px;
+      }
+      .result-table td.clickable-cell {
+        cursor: pointer;
+      }
+      .result-table td.clickable-cell:hover {
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+      }
+      .fixed-list {
+        margin-top: 8px;
+        font-size: 0.82rem;
+        color: var(--text-light);
+      }
+      .fixed-list .fixed-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #f3e8ff;
+        color: #7c3aed;
+        padding: 3px 10px;
+        border-radius: 6px;
+        margin: 2px 4px 2px 0;
+        font-weight: 600;
+        font-size: 0.78rem;
+      }
+      .fixed-list .fixed-item .remove-fix {
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-left: 2px;
+        color: #a78bfa;
+      }
+      .fixed-list .fixed-item .remove-fix:hover {
+        color: var(--danger);
       }
       .tab-bar {
         display: flex;
@@ -720,9 +762,20 @@
 
     <div class="section hidden" id="result-section">
       <h2>📊 配置結果</h2>
-      <div class="optimality-toggle" id="opt-toggle" onclick="toggleDetail()">
-        <span>最適度:</span><span class="opt-pct" id="opt-pct">100%</span
-        ><span class="opt-arrow">▶</span>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-bottom: 8px;
+        "
+      >
+        <div class="optimality-toggle" id="opt-toggle" onclick="toggleDetail()">
+          <span>最適度:</span><span class="opt-pct" id="opt-pct">100%</span
+          ><span class="opt-arrow">▶</span>
+        </div>
+        <div class="fixed-list" id="fixed-list"></div>
       </div>
       <div class="optimality-detail" id="opt-detail">
         <p id="opt-detail-summary"></p>
@@ -743,6 +796,15 @@
       </div>
       <h3 style="font-size: 0.95rem; margin-top: 20px; margin-bottom: 8px">
         一覧表
+        <span
+          style="
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-weight: 400;
+            margin-left: 8px;
+          "
+          >セルをクリックで座席を固定</span
+        >
       </h3>
       <div style="overflow-x: auto">
         <table class="result-table" id="result-table"></table>
@@ -752,7 +814,8 @@
     <script>
       const TOTAL_SEATS = 13,
         TOTAL_SLOTS = 13,
-        STORAGE_KEY = "juku-seat-settings-v2";
+        STORAGE_KEY = "juku-seat-settings-v2",
+        MAX_FIXES = 3;
       const TIME_LABELS = [],
         SLOT_END_TIMES = [];
       {
@@ -840,8 +903,8 @@
         visibleSlots = [],
         parsedEntries = [],
         hasTypeData = false;
-
-      // slotStudentType[slot][studentName] = 'teach' | 'drill'
+      // 固定指定: [{slot, student, seat}]
+      let fixedAssignments = [];
 
       function saveSettings() {
         const data = {
@@ -1104,6 +1167,7 @@
           .forEach((inp) => (inp.value = ""));
         slotStudentType = {};
         hasTypeData = true;
+        fixedAssignments = [];
         const active = parsedEntries.filter((e) => !e.excluded);
         const grouped = {};
         for (const e of active) {
@@ -1138,6 +1202,7 @@
           .forEach((inp) => (inp.value = ""));
         slotStudentType = {};
         hasTypeData = false;
+        fixedAssignments = [];
         for (const line of text.split("\n").filter((l) => l.trim())) {
           const match = line.match(/^\s*(\d+)\s*[:：]\s*(.+)$/);
           if (!match) continue;
@@ -1201,6 +1266,7 @@
         parsedEntries = [];
         slotStudentType = {};
         hasTypeData = false;
+        fixedAssignments = [];
         result = null;
       }
 
@@ -1222,11 +1288,9 @@
       function getTypeForSlot(slot, studentName) {
         if (!studentName) return null;
         const name = studentName.trim();
-        // 数値キーでもう文字列キーでも両方試す
         const entry = slotStudentType[slot] || slotStudentType[String(slot)];
         if (!entry) return null;
         if (entry[name]) return entry[name];
-        // フォールバック: 部分一致（空白差異の吸収）
         for (const [key, val] of Object.entries(entry)) {
           if (key.trim() === name) return val;
         }
@@ -1238,6 +1302,101 @@
         if (type === "teach") return priTeach;
         if (type === "drill") return priDrill;
         return new Set();
+      }
+
+      // --- 固定指定 ---
+      function isFixed(slot, student) {
+        return fixedAssignments.some(
+          (f) => f.slot === slot && f.student === student,
+        );
+      }
+      function getFixedSeat(slot, student) {
+        const f = fixedAssignments.find(
+          (f) => f.slot === slot && f.student === student,
+        );
+        return f ? f.seat : null;
+      }
+      function toggleFix(slot, student, seat) {
+        const idx = fixedAssignments.findIndex(
+          (f) => f.slot === slot && f.student === student,
+        );
+        if (idx >= 0) {
+          fixedAssignments.splice(idx, 1);
+          reOptimize();
+        } else {
+          if (fixedAssignments.length >= MAX_FIXES) {
+            alert(
+              `固定は最大${MAX_FIXES}件までです。既存の固定を解除してください。`,
+            );
+            return;
+          }
+          fixedAssignments.push({ slot, student, seat });
+          reOptimize();
+        }
+      }
+      function removeFix(idx) {
+        fixedAssignments.splice(idx, 1);
+        reOptimize();
+      }
+      function renderFixedList() {
+        const el = document.getElementById("fixed-list");
+        if (!fixedAssignments.length) {
+          el.innerHTML = "";
+          return;
+        }
+        el.innerHTML = fixedAssignments
+          .map(
+            (f, i) =>
+              `<span class="fixed-item">コマ${f.slot + 1} ${f.student.slice(0, 5)} → 席${f.seat}<span class="remove-fix" onclick="removeFix(${i})">✕</span></span>`,
+          )
+          .join("");
+      }
+      function reOptimize() {
+        readSchedule();
+        const weights = getWeights(),
+          availSeats = getAvailableSeats();
+        // 固定の矛盾チェック
+        for (const f of fixedAssignments) {
+          if (!schedule[f.slot] || !schedule[f.slot].includes(f.student)) {
+            alert(
+              `固定エラー: コマ${f.slot + 1}に${f.student}がいません。固定を解除します。`,
+            );
+            fixedAssignments = fixedAssignments.filter(
+              (x) => !(x.slot === f.slot && x.student === f.student),
+            );
+          }
+          if (disabledSeats.has(f.seat)) {
+            alert(`固定エラー: 席${f.seat}は使用禁止です。固定を解除します。`);
+            fixedAssignments = fixedAssignments.filter(
+              (x) => !(x.slot === f.slot && x.student === f.student),
+            );
+          }
+        }
+        let best = randomAssignment(schedule, availSeats),
+          bestScore = calcRawPenalty(best, weights);
+        let current = cloneAssignment(best),
+          currentScore = bestScore;
+        const IT = 80000;
+        let temp = 12;
+        const cool = 0.99994;
+        for (let i = 0; i < IT; i++) {
+          const cand = mutate(current, schedule, availSeats),
+            cs = calcRawPenalty(cand, weights),
+            d = cs - currentScore;
+          if (d < 0 || Math.random() < Math.exp(-d / temp)) {
+            current = cand;
+            currentScore = cs;
+          }
+          if (currentScore < bestScore) {
+            best = cloneAssignment(current);
+            bestScore = currentScore;
+          }
+          temp *= cool;
+          if (bestScore === 0) break;
+        }
+        result = best;
+        visibleSlots = computeVisibleSlots();
+        displayResult(best, calcOptimality(best, weights), calcReport(best));
       }
 
       function calcRawPenalty(assignment, weights) {
@@ -1365,11 +1524,29 @@
           }
           const a = {},
             us = new Set();
-          for (const stu of students)
-            if (sf[stu] !== undefined && availSeats.includes(sf[stu])) {
+          // 固定指定を最優先で適用
+          for (const f of fixedAssignments) {
+            if (
+              f.slot === slot &&
+              students.includes(f.student) &&
+              availSeats.includes(f.seat)
+            ) {
+              a[f.student] = f.seat;
+              us.add(f.seat);
+            }
+          }
+          // 連続コマで同じ席をキープ
+          for (const stu of students) {
+            if (a[stu] !== undefined) continue;
+            if (
+              sf[stu] !== undefined &&
+              availSeats.includes(sf[stu]) &&
+              !us.has(sf[stu])
+            ) {
               a[stu] = sf[stu];
               us.add(sf[stu]);
             }
+          }
           const remaining = students.filter((s) => a[s] === undefined);
           const freeSeats = availSeats.filter((s) => !us.has(s));
           const assigned = new Set();
@@ -1414,37 +1591,54 @@
         if (!ne.length) return mt;
         const slot = ne[Math.floor(Math.random() * ne.length)],
           sts = schedule[slot],
-          a = mt[slot],
-          r = Math.random();
-        if (r < 0.4 && sts.length >= 2) {
-          const i = Math.floor(Math.random() * sts.length);
-          let j = Math.floor(Math.random() * sts.length);
-          while (j === i) j = Math.floor(Math.random() * sts.length);
-          const tmp = a[sts[i]];
-          a[sts[i]] = a[sts[j]];
-          a[sts[j]] = tmp;
+          a = mt[slot];
+        // 固定されてない生徒だけ変更対象にする
+        const mutableStudents = sts.filter((s) => !isFixed(slot, s));
+        if (!mutableStudents.length) return mt;
+        const r = Math.random();
+        if (r < 0.4 && mutableStudents.length >= 2) {
+          const i = Math.floor(Math.random() * mutableStudents.length);
+          let j = Math.floor(Math.random() * mutableStudents.length);
+          while (j === i)
+            j = Math.floor(Math.random() * mutableStudents.length);
+          const tmp = a[mutableStudents[i]];
+          a[mutableStudents[i]] = a[mutableStudents[j]];
+          a[mutableStudents[j]] = tmp;
         } else if (r < 0.7) {
-          const stu = sts[Math.floor(Math.random() * sts.length)],
+          const stu =
+              mutableStudents[
+                Math.floor(Math.random() * mutableStudents.length)
+              ],
+            fixedSeatsInSlot = new Set(
+              fixedAssignments
+                .filter((f) => f.slot === slot)
+                .map((f) => f.seat),
+            ),
             used = new Set(Object.values(a)),
-            free = availSeats.filter((s) => !used.has(s));
+            free = availSeats.filter(
+              (s) => !used.has(s) && !fixedSeatsInSlot.has(s),
+            );
           if (free.length)
             a[stu] = free[Math.floor(Math.random() * free.length)];
         } else {
-          const stu = sts[Math.floor(Math.random() * sts.length)],
+          const stu =
+              mutableStudents[
+                Math.floor(Math.random() * mutableStudents.length)
+              ],
             used = new Set(Object.values(a)),
             free = availSeats.filter((s) => !used.has(s));
           if (!free.length) return mt;
           const ns = free[Math.floor(Math.random() * free.length)];
           a[stu] = ns;
           for (let s = slot - 1; s >= 0; s--) {
-            if (!mt[s] || mt[s][stu] === undefined) break;
+            if (!mt[s] || mt[s][stu] === undefined || isFixed(s, stu)) break;
             const ou = new Set(Object.values(mt[s]));
             ou.delete(mt[s][stu]);
             if (!ou.has(ns)) mt[s][stu] = ns;
             else break;
           }
           for (let s = slot + 1; s < TOTAL_SLOTS; s++) {
-            if (!mt[s] || mt[s][stu] === undefined) break;
+            if (!mt[s] || mt[s][stu] === undefined || isFixed(s, stu)) break;
             const ou = new Set(Object.values(mt[s]));
             ou.delete(mt[s][stu]);
             if (!ou.has(ns)) mt[s][stu] = ns;
@@ -1470,6 +1664,7 @@
 
       function runOptimize() {
         readSchedule();
+        fixedAssignments = [];
         const weights = getWeights(),
           availSeats = getAvailableSeats();
         let hasAny = false;
@@ -1546,13 +1741,12 @@
             : report.issues
                 .map((i) => `<li class="issue">${i.text}</li>`)
                 .join("");
-
-        // Legend
+        renderFixedList();
         const legend = document.getElementById("result-legend");
         if (hasTypeData) {
-          legend.innerHTML = `<div class="legend-item"><div class="legend-swatch" style="background:var(--tag-teach)"></div>指導</div><div class="legend-item"><div class="legend-swatch" style="background:var(--tag-drill)"></div>演習</div>`;
+          legend.innerHTML = `<div class="legend-item"><div class="legend-swatch" style="background:var(--tag-teach)"></div>指導</div><div class="legend-item"><div class="legend-swatch" style="background:var(--tag-drill)"></div>演習</div><div class="legend-item"><div class="legend-swatch" style="background:#f3e8ff;border-color:var(--fixed)"></div>固定</div>`;
         } else {
-          legend.innerHTML = "";
+          legend.innerHTML = `<div class="legend-item"><div class="legend-swatch" style="background:#f3e8ff;border-color:var(--fixed)"></div>固定</div>`;
         }
 
         const slider = document.getElementById("slot-slider");
@@ -1620,7 +1814,7 @@
                     ? "occupied-drill"
                     : "occupied-unknown";
               c.classList.add(cls);
-
+              if (isFixed(slot, s2s[sn])) c.classList.add("fixed-seat");
               const dispName = s2s[sn].slice(0, 5);
               c.innerHTML = `<span class="seat-num">席${sn}</span><span class="seat-student">${dispName}</span>`;
             } else {
@@ -1649,15 +1843,19 @@
             if (disabledSeats.has(s)) {
               html += '<td style="background:#fee2e2">✕</td>';
             } else if (s2s[s]) {
-              const type = getTypeForSlot(slot, s2s[s]);
-              const cls =
+              const stu = s2s[s];
+              const type = getTypeForSlot(slot, stu);
+              const typeCls =
                 type === "teach"
                   ? "cell-teach"
                   : type === "drill"
                     ? "cell-drill"
                     : "cell-unknown";
-              html += `<td class="${cls}">${s2s[s]}</td>`;
-            } else html += "<td></td>";
+              const fixCls = isFixed(slot, stu) ? " cell-fixed" : "";
+              html += `<td class="${typeCls}${fixCls} clickable-cell" onclick="toggleFix(${slot},'${stu.replace(/'/g, "\\'")}',${s})">${stu}</td>`;
+            } else {
+              html += "<td></td>";
+            }
           }
           html += "</tr>";
         }
