@@ -500,7 +500,7 @@
       .result-table th,
       .result-table td {
         border: 1px solid var(--border);
-        padding: 5px 8px;
+        padding: 4px 3px;
         text-align: center;
       }
       .result-table th {
@@ -1621,7 +1621,8 @@
                     : "occupied-unknown";
               c.classList.add(cls);
 
-              c.innerHTML = `<span class="seat-num">席${sn}</span><span class="seat-student">${s2s[sn]}</span>`;
+              const dispName = s2s[sn].slice(0, 5);
+              c.innerHTML = `<span class="seat-num">席${sn}</span><span class="seat-student">${dispName}</span>`;
             } else {
               c.classList.add("vacant");
               c.innerHTML = `<span class="seat-num">席${sn}</span><span>-</span>`;
