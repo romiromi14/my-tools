@@ -121,6 +121,21 @@
         color: var(--text);
         padding: 8px 12px;
       }
+      /* やったよボタン：押す前は緑系の枠線スタイルで「これから押すもの」感を出す */
+      .btn-done {
+        background: #fff;
+        color: #5a9b6a;
+        border: 1.5px solid #9fd0ac;
+        padding: 8px 12px;
+      }
+      .btn-done:hover {
+        background: #f0f9f2;
+      }
+      .item.done .btn-done {
+        color: var(--text-soft);
+        border-color: var(--line);
+      }
+
       .btn-ghost {
         background: transparent;
         color: var(--text-soft);
@@ -491,7 +506,7 @@
         </div>
         ${it.memo ? `<div class="memo">${escapeHtml(it.memo)}</div>` : ""}
         <div class="item-actions">
-          <button class="btn-sub" onclick="toggleDone('${it.id}')">${it.done ? "戻す" : "完了"}</button>
+          <button class="btn-done" onclick="toggleDone('${it.id}')">${it.done ? "棚に戻す" : "完了したら押す ✓"}</button>
           <button class="btn-ghost" onclick="editItem('${it.id}')">編集</button>
           <button class="btn-ghost" onclick="deleteItem('${it.id}')">削除</button>
         </div>
