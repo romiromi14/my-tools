@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>やりたい棚</title>
+    <title>やりたいこと置き場</title>
     <style>
       /* ===== 全体のベース：やわらかめのトーン ===== */
       :root {
@@ -315,17 +315,16 @@
           align-items: flex-start;
           flex-direction: row-reverse; /* 入力フォームを右に、リストを左に */
         }
+        /* フォームのカラム自体をstickyにする（中のラッパーには指定しない） */
         .col-form {
           flex: 0 0 340px;
+          position: sticky;
+          top: 16px;
+          align-self: flex-start; /* これが無いとカラムが縦に伸びてstickyが効かない */
         }
         .col-list {
           flex: 1;
           min-width: 0;
-        }
-        /* フォームはスクロールに追従して固定 */
-        .col-form .sticky {
-          position: sticky;
-          top: 16px;
         }
       }
       /* スマホ向け微調整 */
@@ -342,7 +341,7 @@
   <body>
     <div class="wrap">
       <h1>
-        やりたい棚<small
+        やりたいこと置き場<small
           >「やるべき」じゃなく「やりたい」を、ゆるく置く場所</small
         >
       </h1>
@@ -357,7 +356,8 @@
               <input
                 type="text"
                 id="title"
-                placeholder="例：カフェで本を読む"
+                placeholder="例：ウマ娘　イベスト見る"
+                onblur="autoTagFromTitle()"
               />
 
               <div class="row">
@@ -484,6 +484,28 @@
               .filter((t) => t.length > 0),
           ),
         ];
+      }
+      /* ===== タイトルの先頭塊を自動でタグ欄へ下書きする =====
+     例:「ウマ娘　イベスト見る」→ タグ:ウマ娘 / タイトル:イベスト見る
+     ・全角スペースで区切る（半角は誤爆しやすいので対象外）
+     ・タグ欄が空のときだけ動く（手入力を上書きしない）
+     ・編集中は触らない                                     */
+      function autoTagFromTitle() {
+        if (editingId) return; // 編集中はおせっかいしない
+        const titleEl = document.getElementById("title");
+        const tagsEl = document.getElementById("tags");
+        if (tagsEl.value.trim() !== "") return; // すでにタグがあるなら触らない
+
+        const raw = titleEl.value;
+        // 全角スペースで2つ以上に分かれる時だけ発動
+        const idx = raw.indexOf("　");
+        if (idx <= 0) return;
+
+        const head = raw.slice(0, idx).trim(); // 先頭の塊 → タグ候補
+        const rest = raw.slice(idx + 1).trim(); // 残り → タイトル
+        if (!head || !rest) return; // どちらかが空ならやめる
+
+        tagsEl.value = head; // タグ欄にコピーするだけ。タイトルはそのまま残す
       }
 
       /* ===== 追加 / 更新 ===== */
