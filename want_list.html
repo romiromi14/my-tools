@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>やりたい棚</title>
+    <style>
+      /* ===== 全体のベース：やわらかめのトーン ===== */
+      :root {
+        --bg: #faf6f1;
+        --card: #ffffff;
+        --accent: #e8a87c;
+        --accent-soft: #f6e3d6;
+        --text: #4a4039;
+        --text-soft: #8a7f76;
+        --line: #ece4dc;
+        --done: #cfc7bf;
+        --shadow: 0 2px 10px rgba(120, 90, 60, 0.08);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.7;
+        padding: 16px;
+      }
+      .wrap {
+        max-width: 640px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.5rem;
+        text-align: center;
+        margin: 12px 0 20px;
+        letter-spacing: 0.05em;
+      }
+      h1 small {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-soft);
+        font-weight: normal;
+        margin-top: 4px;
+      }
+
+      /* ===== カード共通 ===== */
+      .card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+        margin-bottom: 20px;
+      }
+
+      /* ===== フォーム ===== */
+      label {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--text-soft);
+        margin: 10px 0 4px;
+      }
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        border: 1.5px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 1rem;
+        font-family: inherit;
+        background: #fffdfb;
+        color: var(--text);
+      }
+      input[type="text"]:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      textarea {
+        resize: vertical;
+        min-height: 48px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .row > div {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      /* ===== ボタン類 ===== */
+      button {
+        font-family: inherit;
+        cursor: pointer;
+        border: none;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition:
+          transform 0.05s,
+          opacity 0.2s;
+      }
+      button:active {
+        transform: scale(0.97);
+      }
+      .btn-main {
+        background: var(--accent);
+        color: #fff;
+        padding: 12px 16px;
+        width: 100%;
+        margin-top: 14px;
+        font-size: 1rem;
+      }
+      .btn-sub {
+        background: var(--accent-soft);
+        color: var(--text);
+        padding: 8px 12px;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-soft);
+        padding: 6px 10px;
+        font-size: 0.85rem;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      .toolbar .grow {
+        flex: 1;
+      }
+
+      /* ===== 一覧 ===== */
+      .group-title {
+        font-size: 0.95rem;
+        margin: 18px 0 8px;
+        padding-left: 4px;
+        color: var(--text);
+        border-left: 4px solid var(--accent);
+        padding-left: 10px;
+      }
+      .item {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        box-shadow: var(--shadow);
+      }
+      .item.done {
+        opacity: 0.5;
+      }
+      .item-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .item-title {
+        font-weight: 600;
+        font-size: 1.05rem;
+        word-break: break-word;
+      }
+      .item.done .item-title {
+        text-decoration: line-through;
+      }
+      .meta {
+        font-size: 0.8rem;
+        color: var(--text-soft);
+        margin-top: 4px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .stars {
+        color: var(--accent);
+        letter-spacing: 1px;
+      }
+      .weight-1 {
+        color: #7fb88a;
+      }
+      .weight-2 {
+        color: #d8a24a;
+      }
+      .weight-3 {
+        color: #d07d6e;
+      }
+      .memo {
+        font-size: 0.85rem;
+        color: var(--text);
+        margin-top: 6px;
+        white-space: pre-wrap;
+      }
+      .item-actions {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .badge {
+        font-size: 0.7rem;
+        background: var(--accent-soft);
+        color: var(--text-soft);
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+
+      /* ===== 空状態 ===== */
+      .empty {
+        text-align: center;
+        color: var(--text-soft);
+        padding: 30px 10px;
+        font-size: 0.95rem;
+      }
+
+      /* ===== 完了セクション ===== */
+      .done-section h2 {
+        font-size: 0.9rem;
+        color: var(--text-soft);
+        margin: 24px 0 8px;
+      }
+
+      /* ===== トースト ===== */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--text);
+        color: #fff;
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+        z-index: 100;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      /* スマホ向け微調整 */
+      @media (max-width: 480px) {
+        body {
+          padding: 12px;
+        }
+        .item-title {
+          font-size: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>
+        やりたい棚<small
+          >「やるべき」じゃなく「やりたい」を、ゆるく置く場所</small
+        >
+      </h1>
+
+      <!-- ===== 追加 / 編集フォーム ===== -->
+      <div class="card">
+        <label for="title">タイトル（必須）</label>
+        <input type="text" id="title" placeholder="例：カフェで本を読む" />
+
+        <div class="row">
+          <div>
+            <label for="want">やりたい度</label>
+            <select id="want">
+              <option value="1">★☆☆</option>
+              <option value="2" selected>★★☆</option>
+              <option value="3">★★★</option>
+            </select>
+          </div>
+          <div>
+            <label for="weight">気が重い度</label>
+            <select id="weight">
+              <option value="1" selected>軽い</option>
+              <option value="2">ちょい重い</option>
+              <option value="3">重い</option>
+            </select>
+          </div>
+          <div>
+            <label for="timing">タイミング</label>
+            <select id="timing">
+              <option value="今日">今日</option>
+              <option value="今週">今週</option>
+              <option value="そのうち" selected>そのうち</option>
+              <option value="いつか">いつか</option>
+              <option value="保留">保留</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="memo">メモ（任意）</label>
+        <textarea id="memo" placeholder="思ったことをゆるく…"></textarea>
+
+        <button class="btn-main" id="submitBtn" onclick="saveItem()">
+          棚に置く
+        </button>
+        <button
+          class="btn-ghost"
+          id="cancelBtn"
+          style="display: none; width: 100%; margin-top: 8px"
+          onclick="cancelEdit()"
+        >
+          編集をやめる
+        </button>
+      </div>
+
+      <!-- ===== ツールバー（並び替え・コピー・サンプル） ===== -->
+      <div class="toolbar">
+        <div class="grow">
+          <select id="sort" onchange="render()">
+            <option value="created">追加順</option>
+            <option value="want">やりたい度が高い順</option>
+            <option value="light">気が軽い順</option>
+            <option value="heavyWant">重いけどやりたい順</option>
+          </select>
+        </div>
+        <button class="btn-sub" onclick="copyMarkdown()">
+          Markdownでコピー
+        </button>
+        <button class="btn-ghost" onclick="addSamples()">
+          サンプルを3件入れる
+        </button>
+      </div>
+
+      <!-- ===== 一覧の描画先 ===== -->
+      <div id="list"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      /* ===== 定数・状態 ===== */
+      const STORAGE_KEY = "yaritai-dana-v1";
+      const TIMINGS = ["今日", "今週", "そのうち", "いつか", "保留"]; // 表示順
+      const WEIGHT_LABELS = { 1: "軽い", 2: "ちょい重い", 3: "重い" };
+
+      let items = load(); // 全データ
+      let editingId = null; // 編集中のID（nullなら新規追加モード）
+
+      /* ===== localStorage 読み書き ===== */
+      function load() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch (e) {
+          return [];
+        }
+      }
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      }
+
+      /* ===== 補助：★表示 ===== */
+      function stars(n) {
+        return "★".repeat(n) + "☆".repeat(3 - n);
+      }
+
+      /* ===== 追加 / 更新 ===== */
+      function saveItem() {
+        const title = document.getElementById("title").value.trim();
+        if (!title) {
+          toast("タイトルは必須だよ");
+          return;
+        }
+        const data = {
+          title,
+          want: Number(document.getElementById("want").value),
+          weight: Number(document.getElementById("weight").value),
+          timing: document.getElementById("timing").value,
+          memo: document.getElementById("memo").value.trim(),
+        };
+
+        if (editingId) {
+          // 既存を更新（作成日時・完了状態は維持）
+          const idx = items.findIndex((i) => i.id === editingId);
+          if (idx !== -1) items[idx] = { ...items[idx], ...data };
+          editingId = null;
+        } else {
+          // 新規追加
+          items.push({
+            id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+            ...data,
+            done: false,
+            created: Date.now(),
+          });
+        }
+        save();
+        resetForm();
+        render();
+      }
+
+      /* ===== フォーム初期化 ===== */
+      function resetForm() {
+        document.getElementById("title").value = "";
+        document.getElementById("want").value = "2";
+        document.getElementById("weight").value = "1";
+        document.getElementById("timing").value = "そのうち";
+        document.getElementById("memo").value = "";
+        document.getElementById("submitBtn").textContent = "棚に置く";
+        document.getElementById("cancelBtn").style.display = "none";
+        editingId = null;
+      }
+
+      /* ===== 編集：内容をフォームへ読み込む ===== */
+      function editItem(id) {
+        const it = items.find((i) => i.id === id);
+        if (!it) return;
+        document.getElementById("title").value = it.title;
+        document.getElementById("want").value = it.want;
+        document.getElementById("weight").value = it.weight;
+        document.getElementById("timing").value = it.timing;
+        document.getElementById("memo").value = it.memo;
+        editingId = id;
+        document.getElementById("submitBtn").textContent = "この内容で更新";
+        document.getElementById("cancelBtn").style.display = "block";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      function cancelEdit() {
+        resetForm();
+        toast("編集をやめたよ");
+      }
+
+      /* ===== 削除（確認あり） ===== */
+      function deleteItem(id) {
+        const it = items.find((i) => i.id === id);
+        if (!it) return;
+        if (confirm(`「${it.title}」を削除する？`)) {
+          items = items.filter((i) => i.id !== id);
+          if (editingId === id) resetForm();
+          save();
+          render();
+        }
+      }
+
+      /* ===== 完了トグル ===== */
+      function toggleDone(id) {
+        const it = items.find((i) => i.id === id);
+        if (!it) return;
+        it.done = !it.done;
+        save();
+        render();
+      }
+
+      /* ===== 並び替え ===== */
+      function sortItems(arr) {
+        const mode = document.getElementById("sort").value;
+        const copy = [...arr];
+        switch (mode) {
+          case "want": // やりたい度が高い順
+            copy.sort((a, b) => b.want - a.want || a.created - b.created);
+            break;
+          case "light": // 気が軽い順（weightが小さいほど軽い）
+            copy.sort((a, b) => a.weight - b.weight || a.created - b.created);
+            break;
+          case "heavyWant": // 重いけどやりたい順（やりたい度×気の重さが大きいほど上）
+            copy.sort(
+              (a, b) =>
+                b.want * b.weight - a.want * a.weight || a.created - b.created,
+            );
+            break;
+          default: // 追加順
+            copy.sort((a, b) => a.created - b.created);
+        }
+        return copy;
+      }
+
+      /* ===== 1件分のHTML ===== */
+      function itemHTML(it) {
+        return `
+      <div class="item ${it.done ? "done" : ""}">
+        <div class="item-top">
+          <div class="item-title">${escapeHtml(it.title)}</div>
+        </div>
+        <div class="meta">
+          <span class="stars">${stars(it.want)}</span>
+          <span class="weight-${it.weight}">${WEIGHT_LABELS[it.weight]}</span>
+        </div>
+        ${it.memo ? `<div class="memo">${escapeHtml(it.memo)}</div>` : ""}
+        <div class="item-actions">
+          <button class="btn-sub" onclick="toggleDone('${it.id}')">${it.done ? "戻す" : "完了"}</button>
+          <button class="btn-ghost" onclick="editItem('${it.id}')">編集</button>
+          <button class="btn-ghost" onclick="deleteItem('${it.id}')">削除</button>
+        </div>
+      </div>`;
+      }
+
+      /* ===== 全体描画 ===== */
+      function render() {
+        const list = document.getElementById("list");
+        const active = sortItems(items.filter((i) => !i.done));
+        const doneItems = items.filter((i) => i.done);
+
+        // 空状態
+        if (items.length === 0) {
+          list.innerHTML = `<div class="empty">まだ何もありません。<br>やりたいことをひとつ置いてみましょう。</div>`;
+          return;
+        }
+
+        let html = "";
+
+        // タイミングごとにグループ表示（未完了のみ）
+        TIMINGS.forEach((t) => {
+          const group = active.filter((i) => i.timing === t);
+          if (group.length === 0) return;
+          html += `<div class="group-title">${t} <span class="badge">${group.length}</span></div>`;
+          group.forEach((it) => {
+            html += itemHTML(it);
+          });
+        });
+
+        if (active.length === 0 && doneItems.length > 0) {
+          html += `<div class="empty">未完了はゼロ。いいペース！</div>`;
+        }
+
+        // 完了は別枠（薄く表示）
+        if (doneItems.length > 0) {
+          html += `<div class="done-section"><h2>完了したもの（${doneItems.length}）</h2>`;
+          doneItems.forEach((it) => {
+            html += itemHTML(it);
+          });
+          html += `</div>`;
+        }
+
+        list.innerHTML = html;
+      }
+
+      /* ===== HTMLエスケープ（XSS対策） ===== */
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      /* ===== Markdown生成 ===== */
+      function buildMarkdown() {
+        let md = "# やりたいことリスト\n";
+
+        // タイミングごとに、未完了のものだけ出力
+        TIMINGS.forEach((t) => {
+          const group = sortItems(
+            items.filter((i) => !i.done && i.timing === t),
+          );
+          if (group.length === 0) return;
+          md += `\n## ${t}\n`;
+          group.forEach((it) => {
+            md += `- ${it.title}\n`;
+            md += `  - やりたい度：${stars(it.want)}\n`;
+            md += `  - 気が重い度：${WEIGHT_LABELS[it.weight]}\n`;
+            if (it.memo) md += `  - メモ：${it.memo}\n`;
+          });
+        });
+
+        // 固定の「AIへの依頼」セクション
+        md += `\n# AIへの依頼\n`;
+        md += `この「やりたいことリスト」を見て、\n`;
+        md += `1. 今日やると満足度が高そうなものを3つ選んでください\n`;
+        md += `2. 気が重いけどやりたいものを、小さな一歩に分解してください\n`;
+        md += `3. すぐできる順に並べてください\n`;
+        md += `4. 無理しない一日の流れを提案してください\n`;
+
+        return md;
+      }
+
+      /* ===== クリップボードへコピー ===== */
+      async function copyMarkdown() {
+        const md = buildMarkdown();
+        try {
+          await navigator.clipboard.writeText(md);
+          toast("Markdownをコピーしたよ");
+        } catch (e) {
+          // クリップボードAPIが使えない環境向けのフォールバック
+          const ta = document.createElement("textarea");
+          ta.value = md;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          toast("Markdownをコピーしたよ");
+        }
+      }
+
+      /* ===== サンプルデータ（ボタンを押した時だけ） ===== */
+      function addSamples() {
+        const samples = [
+          {
+            title: "カフェで本を読む",
+            want: 3,
+            weight: 1,
+            timing: "今日",
+            memo: "午後に行きたい",
+          },
+          {
+            title: "部屋を片付ける",
+            want: 3,
+            weight: 3,
+            timing: "今週",
+            memo: "どこからやるか迷う",
+          },
+          {
+            title: "旅行先を調べる",
+            want: 2,
+            weight: 1,
+            timing: "そのうち",
+            memo: "",
+          },
+        ];
+        const base = Date.now();
+        samples.forEach((s, idx) => {
+          items.push({
+            id: base + "-" + idx,
+            ...s,
+            done: false,
+            created: base + idx,
+          });
+        });
+        save();
+        render();
+        toast("サンプルを3件入れたよ");
+      }
+
+      /* ===== トースト表示 ===== */
+      let toastTimer = null;
+      function toast(msg) {
+        const el = document.getElementById("toast");
+        el.textContent = msg;
+        el.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+      }
+
+      /* ===== 起動 ===== */
+      render();
+    </script>
+  </body>
+</html>
