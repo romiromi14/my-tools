@@ -93,6 +93,11 @@
         flex: 1;
         min-width: 120px;
       }
+      .hint {
+        font-size: 0.72rem;
+        color: var(--text-soft);
+        margin-top: 4px;
+      }
 
       /* ===== ボタン類 ===== */
       button {
@@ -121,6 +126,12 @@
         color: var(--text);
         padding: 8px 12px;
       }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-soft);
+        padding: 6px 10px;
+        font-size: 0.85rem;
+      }
       /* やったよボタン：押す前は緑系の枠線スタイルで「これから押すもの」感を出す */
       .btn-done {
         background: #fff;
@@ -136,12 +147,6 @@
         border-color: var(--line);
       }
 
-      .btn-ghost {
-        background: transparent;
-        color: var(--text-soft);
-        padding: 6px 10px;
-        font-size: 0.85rem;
-      }
       .toolbar {
         display: flex;
         gap: 8px;
@@ -153,11 +158,31 @@
         flex: 1;
       }
 
+      /* ===== タグのフィルタ（チップ） ===== */
+      .tag-filter {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      .tag-chip {
+        font-size: 0.78rem;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1.5px solid var(--line);
+        color: var(--text-soft);
+      }
+      .tag-chip.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
       /* ===== 一覧 ===== */
       .group-title {
         font-size: 0.95rem;
         margin: 18px 0 8px;
-        padding-left: 4px;
         color: var(--text);
         border-left: 4px solid var(--accent);
         padding-left: 10px;
@@ -213,6 +238,20 @@
         margin-top: 6px;
         white-space: pre-wrap;
       }
+      /* アイテム内のタグ表示 */
+      .item-tags {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+      }
+      .item-tag {
+        font-size: 0.72rem;
+        background: var(--accent-soft);
+        color: var(--text);
+        padding: 2px 9px;
+        border-radius: 999px;
+      }
       .item-actions {
         display: flex;
         gap: 4px;
@@ -265,6 +304,30 @@
         transform: translateX(-50%) translateY(0);
       }
 
+      /* ===== PC：2列レイアウト（左リスト・右フォーム） ===== */
+      @media (min-width: 880px) {
+        .wrap {
+          max-width: 1080px;
+        }
+        .layout {
+          display: flex;
+          gap: 28px;
+          align-items: flex-start;
+          flex-direction: row-reverse; /* 入力フォームを右に、リストを左に */
+        }
+        .col-form {
+          flex: 0 0 340px;
+        }
+        .col-list {
+          flex: 1;
+          min-width: 0;
+        }
+        /* フォームはスクロールに追従して固定 */
+        .col-form .sticky {
+          position: sticky;
+          top: 16px;
+        }
+      }
       /* スマホ向け微調整 */
       @media (max-width: 480px) {
         body {
@@ -284,76 +347,97 @@
         >
       </h1>
 
-      <!-- ===== 追加 / 編集フォーム ===== -->
-      <div class="card">
-        <label for="title">タイトル（必須）</label>
-        <input type="text" id="title" placeholder="例：カフェで本を読む" />
+      <!-- ===== 2列レイアウトのコンテナ（PCのみ横並び） ===== -->
+      <div class="layout">
+        <!-- ===== 右側：追加 / 編集フォーム ===== -->
+        <div class="col-form">
+          <div class="sticky">
+            <div class="card">
+              <label for="title">タイトル（必須）</label>
+              <input
+                type="text"
+                id="title"
+                placeholder="例：カフェで本を読む"
+              />
 
-        <div class="row">
-          <div>
-            <label for="want">やりたい度</label>
-            <select id="want">
-              <option value="1">★☆☆</option>
-              <option value="2" selected>★★☆</option>
-              <option value="3">★★★</option>
-            </select>
-          </div>
-          <div>
-            <label for="weight">気が重い度</label>
-            <select id="weight">
-              <option value="1" selected>軽い</option>
-              <option value="2">ちょい重い</option>
-              <option value="3">重い</option>
-            </select>
-          </div>
-          <div>
-            <label for="timing">タイミング</label>
-            <select id="timing">
-              <option value="今日">今日</option>
-              <option value="今週">今週</option>
-              <option value="そのうち" selected>そのうち</option>
-              <option value="いつか">いつか</option>
-              <option value="保留">保留</option>
-            </select>
+              <div class="row">
+                <div>
+                  <label for="want">やりたい度</label>
+                  <select id="want">
+                    <option value="1">★☆☆</option>
+                    <option value="2" selected>★★☆</option>
+                    <option value="3">★★★</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="weight">気が重い度</label>
+                  <select id="weight">
+                    <option value="1" selected>軽い</option>
+                    <option value="2">ちょい重い</option>
+                    <option value="3">重い</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="timing">タイミング</label>
+                  <select id="timing">
+                    <option value="今日">今日</option>
+                    <option value="今週">今週</option>
+                    <option value="そのうち" selected>そのうち</option>
+                    <option value="いつか">いつか</option>
+                    <option value="保留">保留</option>
+                  </select>
+                </div>
+              </div>
+
+              <label for="tags">タグ（任意）</label>
+              <input type="text" id="tags" placeholder="例：ウマ娘, FF14" />
+              <div class="hint">カンマ区切りで複数OK。なくても大丈夫。</div>
+
+              <label for="memo">メモ（任意）</label>
+              <textarea id="memo" placeholder="思ったことをゆるく…"></textarea>
+
+              <button class="btn-main" id="submitBtn" onclick="saveItem()">
+                棚に置く
+              </button>
+              <button
+                class="btn-ghost"
+                id="cancelBtn"
+                style="display: none; width: 100%; margin-top: 8px"
+                onclick="cancelEdit()"
+              >
+                編集をやめる
+              </button>
+            </div>
           </div>
         </div>
 
-        <label for="memo">メモ（任意）</label>
-        <textarea id="memo" placeholder="思ったことをゆるく…"></textarea>
+        <!-- ===== 左側：ツールバー＋一覧 ===== -->
+        <div class="col-list">
+          <!-- ツールバー（並び替え・コピー・サンプル） -->
+          <div class="toolbar">
+            <div class="grow">
+              <select id="sort" onchange="render()">
+                <option value="created">追加順</option>
+                <option value="want">やりたい度が高い順</option>
+                <option value="light">気が軽い順</option>
+                <option value="heavyWant">重いけどやりたい順</option>
+              </select>
+            </div>
+            <button class="btn-sub" onclick="copyMarkdown()">
+              Markdownでコピー
+            </button>
+            <button class="btn-ghost" onclick="addSamples()">
+              サンプルを3件入れる
+            </button>
+          </div>
 
-        <button class="btn-main" id="submitBtn" onclick="saveItem()">
-          棚に置く
-        </button>
-        <button
-          class="btn-ghost"
-          id="cancelBtn"
-          style="display: none; width: 100%; margin-top: 8px"
-          onclick="cancelEdit()"
-        >
-          編集をやめる
-        </button>
-      </div>
+          <!-- タグでの絞り込み（タグがある時だけ表示） -->
+          <div class="tag-filter" id="tagFilter"></div>
 
-      <!-- ===== ツールバー（並び替え・コピー・サンプル） ===== -->
-      <div class="toolbar">
-        <div class="grow">
-          <select id="sort" onchange="render()">
-            <option value="created">追加順</option>
-            <option value="want">やりたい度が高い順</option>
-            <option value="light">気が軽い順</option>
-            <option value="heavyWant">重いけどやりたい順</option>
-          </select>
+          <!-- 一覧の描画先 -->
+          <div id="list"></div>
         </div>
-        <button class="btn-sub" onclick="copyMarkdown()">
-          Markdownでコピー
-        </button>
-        <button class="btn-ghost" onclick="addSamples()">
-          サンプルを3件入れる
-        </button>
       </div>
-
-      <!-- ===== 一覧の描画先 ===== -->
-      <div id="list"></div>
     </div>
 
     <div class="toast" id="toast"></div>
@@ -366,11 +450,17 @@
 
       let items = load(); // 全データ
       let editingId = null; // 編集中のID（nullなら新規追加モード）
+      let activeTag = null; // 絞り込み中のタグ（nullなら絞り込みなし）
 
       /* ===== localStorage 読み書き ===== */
       function load() {
         try {
-          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+          const data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+          // 古いデータにtagsが無くても落ちないよう保険
+          return data.map((d) => ({
+            ...d,
+            tags: Array.isArray(d.tags) ? d.tags : [],
+          }));
         } catch (e) {
           return [];
         }
@@ -382,6 +472,18 @@
       /* ===== 補助：★表示 ===== */
       function stars(n) {
         return "★".repeat(n) + "☆".repeat(3 - n);
+      }
+
+      /* ===== タグ文字列を配列に変換（カンマ区切り・空白除去・重複除去） ===== */
+      function parseTags(str) {
+        return [
+          ...new Set(
+            str
+              .split(",")
+              .map((t) => t.trim())
+              .filter((t) => t.length > 0),
+          ),
+        ];
       }
 
       /* ===== 追加 / 更新 ===== */
@@ -396,6 +498,7 @@
           want: Number(document.getElementById("want").value),
           weight: Number(document.getElementById("weight").value),
           timing: document.getElementById("timing").value,
+          tags: parseTags(document.getElementById("tags").value),
           memo: document.getElementById("memo").value.trim(),
         };
 
@@ -424,6 +527,7 @@
         document.getElementById("want").value = "2";
         document.getElementById("weight").value = "1";
         document.getElementById("timing").value = "そのうち";
+        document.getElementById("tags").value = "";
         document.getElementById("memo").value = "";
         document.getElementById("submitBtn").textContent = "棚に置く";
         document.getElementById("cancelBtn").style.display = "none";
@@ -438,6 +542,7 @@
         document.getElementById("want").value = it.want;
         document.getElementById("weight").value = it.weight;
         document.getElementById("timing").value = it.timing;
+        document.getElementById("tags").value = (it.tags || []).join(", ");
         document.getElementById("memo").value = it.memo;
         editingId = id;
         document.getElementById("submitBtn").textContent = "この内容で更新";
@@ -493,8 +598,45 @@
         return copy;
       }
 
+      /* ===== タグの絞り込みを適用 ===== */
+      function applyTagFilter(arr) {
+        if (!activeTag) return arr;
+        return arr.filter((i) => (i.tags || []).includes(activeTag));
+      }
+
+      /* ===== タグ一覧（全アイテムから集める） ===== */
+      function allTags() {
+        const set = new Set();
+        items.forEach((i) => (i.tags || []).forEach((t) => set.add(t)));
+        return [...set];
+      }
+
+      /* ===== タグフィルタUIの描画 ===== */
+      function renderTagFilter() {
+        const box = document.getElementById("tagFilter");
+        const tags = allTags();
+        if (tags.length === 0) {
+          box.innerHTML = "";
+          return;
+        }
+
+        let html = `<span class="tag-chip ${activeTag === null ? "active" : ""}" onclick="setTag(null)">すべて</span>`;
+        tags.forEach((t) => {
+          html += `<span class="tag-chip ${activeTag === t ? "active" : ""}" onclick="setTag('${escapeAttr(t)}')">${escapeHtml(t)}</span>`;
+        });
+        box.innerHTML = html;
+      }
+      function setTag(t) {
+        activeTag = t;
+        render();
+      }
+
       /* ===== 1件分のHTML ===== */
       function itemHTML(it) {
+        const tagsHtml =
+          it.tags && it.tags.length
+            ? `<div class="item-tags">${it.tags.map((t) => `<span class="item-tag">${escapeHtml(t)}</span>`).join("")}</div>`
+            : "";
         return `
       <div class="item ${it.done ? "done" : ""}">
         <div class="item-top">
@@ -504,6 +646,7 @@
           <span class="stars">${stars(it.want)}</span>
           <span class="weight-${it.weight}">${WEIGHT_LABELS[it.weight]}</span>
         </div>
+        ${tagsHtml}
         ${it.memo ? `<div class="memo">${escapeHtml(it.memo)}</div>` : ""}
         <div class="item-actions">
           <button class="btn-done" onclick="toggleDone('${it.id}')">${it.done ? "棚に戻す" : "完了したら押す ✓"}</button>
@@ -515,13 +658,22 @@
 
       /* ===== 全体描画 ===== */
       function render() {
-        const list = document.getElementById("list");
-        const active = sortItems(items.filter((i) => !i.done));
-        const doneItems = items.filter((i) => i.done);
+        renderTagFilter();
 
-        // 空状態
+        const list = document.getElementById("list");
+        // タグ絞り込みを適用してから、未完了／完了に分ける
+        const filtered = applyTagFilter(items);
+        const active = sortItems(filtered.filter((i) => !i.done));
+        const doneItems = filtered.filter((i) => i.done);
+
+        // 空状態（全データが0件のとき）
         if (items.length === 0) {
           list.innerHTML = `<div class="empty">まだ何もありません。<br>やりたいことをひとつ置いてみましょう。</div>`;
+          return;
+        }
+        // 絞り込みで0件になったとき
+        if (filtered.length === 0) {
+          list.innerHTML = `<div class="empty">「${escapeHtml(activeTag)}」のものはまだ無いみたい。</div>`;
           return;
         }
 
@@ -561,15 +713,20 @@
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;");
       }
+      // onclick属性に渡す文字列用（シングルクォート等を無害化）
+      function escapeAttr(str) {
+        return String(str).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      }
 
       /* ===== Markdown生成 ===== */
       function buildMarkdown() {
         let md = "# やりたいことリスト\n";
 
-        // タイミングごとに、未完了のものだけ出力
+        // タイミングごとに、未完了のものだけ出力（絞り込み中ならそれも反映）
+        const base = applyTagFilter(items);
         TIMINGS.forEach((t) => {
           const group = sortItems(
-            items.filter((i) => !i.done && i.timing === t),
+            base.filter((i) => !i.done && i.timing === t),
           );
           if (group.length === 0) return;
           md += `\n## ${t}\n`;
@@ -577,6 +734,8 @@
             md += `- ${it.title}\n`;
             md += `  - やりたい度：${stars(it.want)}\n`;
             md += `  - 気が重い度：${WEIGHT_LABELS[it.weight]}\n`;
+            if (it.tags && it.tags.length)
+              md += `  - タグ：${it.tags.join(", ")}\n`;
             if (it.memo) md += `  - メモ：${it.memo}\n`;
           });
         });
@@ -618,6 +777,7 @@
             want: 3,
             weight: 1,
             timing: "今日",
+            tags: ["ひとり時間"],
             memo: "午後に行きたい",
           },
           {
@@ -625,6 +785,7 @@
             want: 3,
             weight: 3,
             timing: "今週",
+            tags: ["暮らし"],
             memo: "どこからやるか迷う",
           },
           {
@@ -632,6 +793,7 @@
             want: 2,
             weight: 1,
             timing: "そのうち",
+            tags: ["旅行"],
             memo: "",
           },
         ];
