@@ -248,10 +248,12 @@
       }
       .caret {
         display: inline-block;
-        width: 10px;
-        font-size: 10px;
+        width: 12px;
+        font-size: 12px;
         color: #ff7eb3;
         margin-right: 8px;
+        position: relative;
+        top: -1px; /* ← これを追加。マイナスを大きくするほど上がる */
       }
       /* 集計の2列レイアウト */
       .summary-grid {
@@ -317,10 +319,6 @@
         <div class="summary-grid">
           <div class="summary-main">
             <div class="card">
-              <div class="big" id="totalAmount">¥0</div>
-              <div class="muted" id="periodLabel"></div>
-            </div>
-            <div class="card">
               <div class="grouphead">カテゴリ別の割合</div>
               <div style="max-width: 380px; margin: auto">
                 <canvas id="groupChart"></canvas>
@@ -361,6 +359,18 @@
                 id="periodPills"
                 style="flex-direction: column; align-items: stretch"
               ></div>
+              <div
+                style="
+                  border-top: 1px solid #f0f0f0;
+                  margin-top: 14px;
+                  padding-top: 12px;
+                "
+              >
+                <div class="big" id="totalAmount" style="font-size: 22px">
+                  ¥0
+                </div>
+                <div class="muted" id="periodLabel"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -415,7 +425,7 @@
         楽天キャッシュ: "生活費",
         交通: "生活費",
         コンタクト: "生活費",
-        "その他(生活費)": "生活費",
+        ほかの生活費: "生活費",
         ゲーム: "娯楽費",
         漫画: "娯楽費",
         Google: "娯楽費",
@@ -424,10 +434,10 @@
         Twitch: "娯楽費",
         Apple: "娯楽費",
         ABEMA: "娯楽費",
-        "その他(娯楽費)": "娯楽費",
+        ほかの娯楽費: "娯楽費",
         インターネット: "固定費",
         モバイル: "固定費",
-        "その他(固定費)": "固定費",
+        ほかの固定費: "固定費",
       };
       const defaultRules = [
         { match: "GOOGLE", cat: "Google" },
