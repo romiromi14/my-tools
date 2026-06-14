@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ゆるい家計簿</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
     <style>
       * {
         box-sizing: border-box;
@@ -126,6 +127,10 @@
         background: #fff;
         color: #ff7eb3;
         border: 1px solid #ffb3d1;
+        padding: 7px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
       }
       .card {
         background: #fff;
@@ -199,6 +204,17 @@
         border-radius: 6px;
         font-size: 14px;
       }
+      .monthnote {
+        background: #fff0f6;
+        border: 1px solid #ffb3d1;
+        border-radius: 8px;
+        padding: 8px 12px;
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 13px;
+        color: #b06;
+      }
     </style>
   </head>
   <body>
@@ -217,7 +233,7 @@
         <div class="drop" id="drop">
           ここにCSVファイルをドラッグ＆ドロップ<br />
           <span class="muted"
-            >またはクリックして選択（カードは自動判別されるよ）</span
+            >またはクリックして選択（カードは自動判別／文字コードも自動対応）</span
           >
           <input type="file" id="file" accept=".csv" multiple hidden />
         </div>
@@ -229,7 +245,7 @@
       <section class="panel" id="panel-unclassified">
         <div class="card">
           <div class="muted">
-            ルールに無い店名だよ。細目カテゴリを選ぶと、次から自動で振り分けられるようになる。
+            ルールに無い店名だよ。項目を選ぶと、次から自動で振り分けられるようになる。
           </div>
         </div>
         <div id="uncList"></div>
@@ -251,17 +267,28 @@
           <div class="muted" id="periodLabel"></div>
         </div>
         <div class="card">
-          <div class="grouphead">大グループ別の割合</div>
+          <div class="grouphead">カテゴリ別の割合</div>
           <div style="max-width: 380px; margin: auto">
             <canvas id="groupChart"></canvas>
           </div>
         </div>
         <div class="card">
           <div class="grouphead">月ごとの推移</div>
+          <div class="muted" style="margin-bottom: 8px">
+            棒グラフの月をクリックすると、下の内訳がその月だけになるよ。
+          </div>
           <canvas id="trendChart"></canvas>
         </div>
         <div class="card" id="breakdownWrap">
-          <div class="grouphead">細目の内訳</div>
+          <div class="row" style="justify-content: space-between">
+            <div class="grouphead" id="breakdownTitle">項目の内訳</div>
+            <span class="monthnote" id="monthNote" style="display: none"
+              ><span id="monthNoteText"></span
+              ><button class="ghost" id="clearMonth">
+                期間全体に戻す
+              </button></span
+            >
+          </div>
           <div id="breakdown"></div>
         </div>
       </section>
@@ -269,15 +296,15 @@
       <!-- 設定 -->
       <section class="panel" id="panel-settings">
         <div class="card">
-          <div class="grouphead">細目カテゴリの管理</div>
+          <div class="grouphead">項目の管理</div>
           <div class="muted">
-            新しい細目を作るときは、どの大グループに入れるか選んでね。
+            新しい項目を作るときは、どのカテゴリに入れるか選んでね。名前は後から変更もできる。
           </div>
           <div class="row" style="margin-top: 12px">
             <input
               type="text"
               id="newCatName"
-              placeholder="細目名（例：食費）"
+              placeholder="項目名（例：食費）"
             />
             <select id="newCatGroup"></select>
             <button class="act" id="addCatBtn">追加</button>
@@ -285,7 +312,7 @@
           <div id="catList" style="margin-top: 14px"></div>
         </div>
         <div class="card">
-          <div class="grouphead">登録済みルール（店名 → 細目）</div>
+          <div class="grouphead">登録済みルール（店名 → 項目）</div>
           <div id="ruleList"></div>
         </div>
         <div class="card">
@@ -308,7 +335,7 @@
       const STORE = "yurui_kakeibo_v1";
       const defaultGroups = ["生活費", "娯楽費", "固定費"];
       const defaultCats = {
-        // 細目名: 大グループ
+        // 項目名: カテゴリ
         "楽天キャッシュ チャージ": "生活費",
         交通: "生活費",
         コンタクト: "生活費",
@@ -321,7 +348,6 @@
         インターネット: "固定費",
         モバイル: "固定費",
       };
-      // 初期ルール（店名に含まれる文字列 → 細目）。実物に合わせて育つ。
       const defaultRules = [
         { match: "GOOGLE", cat: "Google" },
         { match: "AMAZON", cat: "Amazon" },
@@ -337,7 +363,9 @@
         const raw = localStorage.getItem(STORE);
         if (raw) {
           try {
-            return JSON.parse(raw);
+            const d = JSON.parse(raw);
+            if (!d.files) d.files = [];
+            return d;
           } catch (e) {}
         }
         return {
@@ -345,10 +373,30 @@
           cats: { ...defaultCats },
           rules: [...defaultRules],
           entries: [],
+          files: [],
         };
       }
       function save() {
         localStorage.setItem(STORE, JSON.stringify(db));
+      }
+
+      // ===== 文字コード対応の読み込み =====
+      function readFileSmart(file) {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const bytes = new Uint8Array(reader.result);
+            // encoding-japanese で自動判定（UTF-8 / Shift_JIS など）
+            const detected = Encoding.detect(bytes) || "UTF8";
+            const unicodeArr = Encoding.convert(bytes, {
+              to: "UNICODE",
+              from: detected,
+            });
+            const text = Encoding.codeToString(unicodeArr);
+            resolve(text);
+          };
+          reader.readAsArrayBuffer(file);
+        });
       }
 
       // ===== CSV解析 =====
@@ -383,13 +431,12 @@
         return s;
       }
 
-      // カード判別＆抽出。共通形式 {date, name, amount} の配列を返す
       function extractEntries(text) {
         const lines = text.split(/\r\n|\n|\r/).filter((l) => l.length > 0);
         if (lines.length === 0) return [];
         const first = lines[0];
 
-        // カード2：頭に契約情報、<利用明細> の次行が本ヘッダー
+        // カード2
         if (
           first.startsWith("ご契約番号") ||
           lines.some((l) => l.startsWith("<利用明細>"))
@@ -413,12 +460,12 @@
           return res;
         }
 
-        // カード1：1行目がクォート付きヘッダー
+        // カード1
         const header = parseCSVLine(first);
         const di = header.indexOf("利用日");
         const ni = header.indexOf("利用店名・商品名");
         const ai = header.indexOf("利用金額");
-        if (di < 0 || ni < 0 || ai < 0) return null; // 未対応フォーマット
+        if (di < 0 || ni < 0 || ai < 0) return null;
         const res = [];
         for (let i = 1; i < lines.length; i++) {
           const c = parseCSVLine(lines[i]);
@@ -438,31 +485,40 @@
         for (const r of db.rules) {
           if (upper.includes(r.match.toUpperCase())) return r.cat;
         }
-        return null; // 未分類
+        return null;
       }
 
-      // ===== 取り込み処理 =====
+      // 簡易ハッシュ（ファイル内容＋名前で重複ファイル判定）
+      function fileSig(fname, text) {
+        let h = 0;
+        const s = fname + "|" + text;
+        for (let i = 0; i < s.length; i++) {
+          h = (h * 31 + s.charCodeAt(i)) | 0;
+        }
+        return fname + ":" + text.length + ":" + h;
+      }
+
+      // ===== 取り込み（ファイル単位の重複防止） =====
       function importText(text, fname) {
+        const sig = fileSig(fname, text);
+        if (db.files.includes(sig)) {
+          return {
+            ok: false,
+            msg: `${fname}：このファイルは取り込み済みだよ（スキップ）`,
+          };
+        }
         const ext = extractEntries(text);
         if (ext === null) {
           return { ok: false, msg: `${fname}：対応していないフォーマットかも` };
         }
-        let added = 0,
-          dup = 0;
+        let added = 0;
         for (const e of ext) {
-          const key = e.date + "|" + e.name + "|" + e.amount;
-          if (db.entries.some((x) => x.key === key)) {
-            dup++;
-            continue;
-          }
-          db.entries.push({ ...e, key, cat: classify(e.name) });
+          db.entries.push({ ...e, cat: classify(e.name) });
           added++;
         }
+        db.files.push(sig);
         save();
-        return {
-          ok: true,
-          msg: `${fname}：${added}件追加${dup ? `（重複${dup}件スキップ）` : ""}`,
-        };
+        return { ok: true, msg: `${fname}：${added}件追加` };
       }
 
       // ===== 画面共通 =====
@@ -515,25 +571,17 @@
       };
       fileInput.onchange = () => handleFiles(fileInput.files);
 
-      function handleFiles(files) {
+      async function handleFiles(files) {
         const msgs = [];
-        let pending = files.length;
-        [...files].forEach((f) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const res = importText(reader.result, f.name);
-            msgs.push(res.msg);
-            pending--;
-            if (pending === 0) {
-              document.getElementById("importMsg").innerHTML =
-                msgs.join("<br>");
-              renderRecent();
-              updateBadge();
-              toast("取り込み完了");
-            }
-          };
-          reader.readAsText(f, "UTF-8");
-        });
+        for (const f of files) {
+          const text = await readFileSmart(f);
+          const res = importText(text, f.name);
+          msgs.push(res.msg);
+        }
+        document.getElementById("importMsg").innerHTML = msgs.join("<br>");
+        renderRecent();
+        updateBadge();
+        toast("取り込み完了");
       }
 
       function renderRecent() {
@@ -545,7 +593,7 @@
           return;
         }
         let h =
-          '<table><tr><th>日付</th><th>店名</th><th class="amount">金額</th><th>カテゴリ</th></tr>';
+          '<table><tr><th>日付</th><th>店名</th><th class="amount">金額</th><th>項目</th></tr>';
         for (const e of recent) {
           const tag = e.cat
             ? `<span class="tag">${e.cat}</span>`
@@ -558,15 +606,14 @@
       }
       function esc(s) {
         return String(s).replace(
-          /[&<>]/g,
-          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c],
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
         );
       }
 
       // ===== 未分類UI =====
       function renderUnclassified() {
         const unc = db.entries.filter((e) => !e.cat);
-        // 店名ごとにまとめる
         const byName = {};
         unc.forEach((e) => {
           (byName[e.name] = byName[e.name] || []).push(e);
@@ -581,11 +628,10 @@
         names.forEach((name) => {
           const list = byName[name];
           const sum = list.reduce((a, e) => a + e.amount, 0);
-          const opts = catOptions();
           h += `<div class="card"><div class="row" style="justify-content:space-between;">
       <div><b>${esc(name)}</b><div class="muted">${list.length}件・合計 ${fmt(sum)}</div></div>
       <div class="row">
-        <select data-name="${esc(name)}">${opts}</select>
+        <select data-name="${esc(name)}">${catOptions()}</select>
         <button class="act assignBtn" data-name="${esc(name)}">この店名を振り分け</button>
       </div></div></div>`;
         });
@@ -597,9 +643,7 @@
               `select[data-name="${CSS.escape(name)}"]`,
             );
             const cat = sel.value;
-            // ルールに追加（店名まるごとを一致条件に）
             db.rules.push({ match: name, cat });
-            // 既存の同店名エントリにも反映
             db.entries.forEach((e) => {
               if (e.name === name && !e.cat) e.cat = cat;
             });
@@ -619,7 +663,8 @@
       // ===== 集計UI =====
       let groupChart,
         trendChart,
-        curPeriod = 12;
+        curPeriod = 12,
+        selectedMonth = null;
       document.getElementById("periodPills").onclick = (e) => {
         if (!e.target.dataset.p) return;
         document
@@ -628,8 +673,14 @@
         e.target.classList.add("active");
         curPeriod =
           e.target.dataset.p === "all" ? "all" : parseInt(e.target.dataset.p);
+        selectedMonth = null;
         renderSummary();
       };
+      document.getElementById("clearMonth").onclick = () => {
+        selectedMonth = null;
+        renderSummary();
+      };
+
       function periodEntries() {
         const cls = db.entries.filter((e) => e.cat);
         if (curPeriod === "all") return cls;
@@ -643,19 +694,9 @@
         const total = ents.reduce((a, e) => a + e.amount, 0);
         document.getElementById("totalAmount").textContent = fmt(total);
         document.getElementById("periodLabel").textContent =
-          curPeriod === "all"
-            ? "全期間"
-            : `直近${curPeriod}ヶ月` + `・分類済み${ents.length}件`;
+          (curPeriod === "all" ? "全期間" : `直近${curPeriod}ヶ月`) +
+          `・分類済み${ents.length}件`;
 
-        // 大グループ別
-        const byGroup = {};
-        db.groups.forEach((g) => (byGroup[g] = 0));
-        ents.forEach((e) => {
-          const g = db.cats[e.cat];
-          if (g != null) byGroup[g] = (byGroup[g] || 0) + e.amount;
-        });
-        const gLabels = Object.keys(byGroup).filter((g) => byGroup[g] > 0);
-        const gData = gLabels.map((g) => byGroup[g]);
         const palette = [
           "#ff9ec4",
           "#ffd28a",
@@ -664,6 +705,16 @@
           "#d3a4ff",
           "#ffb3a0",
         ];
+
+        // カテゴリ別（期間全体・円グラフ）
+        const byGroup = {};
+        db.groups.forEach((g) => (byGroup[g] = 0));
+        ents.forEach((e) => {
+          const g = db.cats[e.cat];
+          if (g != null) byGroup[g] = (byGroup[g] || 0) + e.amount;
+        });
+        const gLabels = Object.keys(byGroup).filter((g) => byGroup[g] > 0);
+        const gData = gLabels.map((g) => byGroup[g]);
         if (groupChart) groupChart.destroy();
         groupChart = new Chart(document.getElementById("groupChart"), {
           type: "doughnut",
@@ -674,7 +725,7 @@
           options: { plugins: { legend: { position: "bottom" } } },
         });
 
-        // 月ごと推移（大グループ別の積み上げ）
+        // 月ごと推移（クリックで月選択）
         const months = [...new Set(ents.map((e) => e.date.slice(0, 7)))].sort();
         const ds = db.groups.map((g, i) => ({
           label: g,
@@ -693,12 +744,36 @@
             responsive: true,
             scales: { x: { stacked: true }, y: { stacked: true } },
             plugins: { legend: { position: "bottom" } },
+            onClick: (evt, els) => {
+              if (els.length) {
+                selectedMonth = months[els[0].index];
+                renderBreakdown(ents);
+              }
+            },
           },
         });
 
-        // 細目内訳
+        renderBreakdown(ents);
+      }
+
+      function renderBreakdown(ents) {
+        // 月選択中ならその月だけに絞る
+        let list = ents,
+          title = "項目の内訳";
+        const note = document.getElementById("monthNote");
+        if (selectedMonth) {
+          list = ents.filter((e) => e.date.slice(0, 7) === selectedMonth);
+          title = `項目の内訳`;
+          note.style.display = "inline-flex";
+          document.getElementById("monthNoteText").textContent =
+            `${selectedMonth.replace("-", "年")}月だけ表示中`;
+        } else {
+          note.style.display = "none";
+        }
+        document.getElementById("breakdownTitle").textContent = title;
+
         const byCat = {};
-        ents.forEach((e) => {
+        list.forEach((e) => {
           byCat[e.cat] = (byCat[e.cat] || 0) + e.amount;
         });
         const sorted = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
@@ -719,18 +794,16 @@
 
       // ===== 設定UI =====
       function renderSettings() {
-        // 大グループのselect
         document.getElementById("newCatGroup").innerHTML = db.groups
           .map((g) => `<option>${g}</option>`)
           .join("");
-        // 細目一覧
-        let h = "<table><tr><th>細目</th><th>大グループ</th><th></th></tr>";
+        let h = "<table><tr><th>項目</th><th>カテゴリ</th><th></th></tr>";
         Object.entries(db.cats).forEach(([c, g]) => {
           const gopts = db.groups
             .map((x) => `<option ${x === g ? "selected" : ""}>${x}</option>`)
             .join("");
-          h += `<tr><td>${c}</td><td><select class="catGroupSel" data-cat="${esc(c)}">${gopts}</select></td>
-      <td><button class="ghost delCat" data-cat="${esc(c)}">削除</button></td></tr>`;
+          h += `<tr><td>${esc(c)}</td><td><select class="catGroupSel" data-cat="${esc(c)}">${gopts}</select></td>
+      <td><div class="row"><button class="ghost renCat" data-cat="${esc(c)}">名前変更</button><button class="ghost delCat" data-cat="${esc(c)}">削除</button></div></td></tr>`;
         });
         h += "</table>";
         document.getElementById("catList").innerHTML = h;
@@ -740,23 +813,36 @@
               db.cats[s.dataset.cat] = s.value;
               save();
               toast("変更したよ");
-              renderSummary();
             }),
         );
+        document
+          .querySelectorAll(".renCat")
+          .forEach((b) => (b.onclick = () => renameCat(b.dataset.cat)));
         document.querySelectorAll(".delCat").forEach(
           (b) =>
             (b.onclick = () => {
-              delete db.cats[b.dataset.cat];
+              if (
+                !confirm(
+                  `「${b.dataset.cat}」を削除する？\n（この項目の明細は未分類に戻るよ）`,
+                )
+              )
+                return;
+              const c = b.dataset.cat;
+              db.entries.forEach((e) => {
+                if (e.cat === c) e.cat = null;
+              });
+              db.rules = db.rules.filter((r) => r.cat !== c);
+              delete db.cats[c];
               save();
               renderSettings();
+              updateBadge();
               toast("削除したよ");
             }),
         );
 
-        // ルール一覧
-        let r = "<table><tr><th>店名に含む文字</th><th>細目</th><th></th></tr>";
+        let r = "<table><tr><th>店名に含む文字</th><th>項目</th><th></th></tr>";
         db.rules.forEach((rule, i) => {
-          r += `<tr><td>${esc(rule.match)}</td><td>${rule.cat}</td><td><button class="ghost delRule" data-i="${i}">削除</button></td></tr>`;
+          r += `<tr><td>${esc(rule.match)}</td><td>${esc(rule.cat)}</td><td><button class="ghost delRule" data-i="${i}">削除</button></td></tr>`;
         });
         r += "</table>";
         document.getElementById("ruleList").innerHTML = r;
@@ -770,11 +856,39 @@
             }),
         );
       }
+
+      // 項目のリネーム（明細・ルールも追従）
+      function renameCat(oldName) {
+        const newName = prompt(`「${oldName}」を何に変更する？`, oldName);
+        if (newName === null) return;
+        const nn = newName.trim();
+        if (!nn || nn === oldName) return;
+        if (db.cats[nn]) {
+          toast("同じ名前の項目が既にあるよ");
+          return;
+        }
+        db.cats[nn] = db.cats[oldName];
+        delete db.cats[oldName];
+        db.entries.forEach((e) => {
+          if (e.cat === oldName) e.cat = nn;
+        });
+        db.rules.forEach((r) => {
+          if (r.cat === oldName) r.cat = nn;
+        });
+        save();
+        renderSettings();
+        toast(`「${oldName}」→「${nn}」に変更`);
+      }
+
       document.getElementById("addCatBtn").onclick = () => {
         const name = document.getElementById("newCatName").value.trim();
         const g = document.getElementById("newCatGroup").value;
         if (!name) {
-          toast("細目名を入れてね");
+          toast("項目名を入れてね");
+          return;
+        }
+        if (db.cats[name]) {
+          toast("もうある項目だよ");
           return;
         }
         db.cats[name] = g;
@@ -803,10 +917,12 @@
         reader.onload = () => {
           try {
             db = JSON.parse(reader.result);
+            if (!db.files) db.files = [];
             save();
             toast("読み込み完了");
             switchTab("import");
             renderRecent();
+            updateBadge();
           } catch (err) {
             toast("ファイルが読めなかった");
           }
@@ -814,7 +930,6 @@
         reader.readAsText(f, "UTF-8");
       };
 
-      // 初期描画
       renderRecent();
       updateBadge();
     </script>
