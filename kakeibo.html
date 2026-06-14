@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ゆるい家計簿</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+        margin: 0;
+        background: #f5f6f8;
+        color: #2a2a2a;
+      }
+      header {
+        background: #ff7eb3;
+        color: #fff;
+        padding: 16px 20px;
+        font-size: 20px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+      }
+      nav {
+        display: flex;
+        background: #fff;
+        border-bottom: 1px solid #eee;
+      }
+      nav button {
+        flex: 1;
+        padding: 14px;
+        border: none;
+        background: none;
+        font-size: 15px;
+        cursor: pointer;
+        color: #888;
+        border-bottom: 3px solid transparent;
+      }
+      nav button.active {
+        color: #ff7eb3;
+        border-bottom-color: #ff7eb3;
+        font-weight: bold;
+      }
+      main {
+        padding: 20px;
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      .panel {
+        display: none;
+      }
+      .panel.active {
+        display: block;
+      }
+      .drop {
+        border: 2px dashed #ffb3d1;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        color: #b06;
+        background: #fff;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .drop.over {
+        background: #fff0f6;
+        border-color: #ff7eb3;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 16px;
+        font-size: 14px;
+      }
+      th,
+      td {
+        padding: 9px 12px;
+        text-align: left;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      th {
+        background: #fafafa;
+        color: #777;
+        font-weight: 600;
+      }
+      td.amount {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .tag {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 20px;
+        font-size: 12px;
+        background: #eee;
+        color: #555;
+      }
+      .tag.unclassified {
+        background: #ffe3e3;
+        color: #c00;
+      }
+      select {
+        padding: 6px 8px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      button.act {
+        background: #ff7eb3;
+        color: #fff;
+        border: none;
+        padding: 9px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button.act:hover {
+        background: #ff5fa0;
+      }
+      button.ghost {
+        background: #fff;
+        color: #ff7eb3;
+        border: 1px solid #ffb3d1;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .muted {
+        color: #999;
+        font-size: 13px;
+      }
+      .big {
+        font-size: 26px;
+        font-weight: bold;
+      }
+      .grouphead {
+        font-size: 17px;
+        font-weight: bold;
+        margin: 18px 0 6px;
+        color: #ff5fa0;
+      }
+      .bar {
+        height: 10px;
+        border-radius: 5px;
+        background: #ff9ec4;
+      }
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: #fff;
+        padding: 10px 18px;
+        border-radius: 8px;
+        opacity: 0;
+        transition: 0.3s;
+        pointer-events: none;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      .pill-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 10px 0;
+      }
+      .pill {
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: #fff;
+        border: 1px solid #ddd;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .pill.active {
+        background: #ff7eb3;
+        color: #fff;
+        border-color: #ff7eb3;
+      }
+      input[type="text"] {
+        padding: 7px 9px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>🌸 ゆるい家計簿</header>
+    <nav>
+      <button data-tab="import" class="active">取り込み</button>
+      <button data-tab="unclassified">
+        未分類の振り分け <span id="uncBadge"></span>
+      </button>
+      <button data-tab="summary">集計</button>
+      <button data-tab="settings">設定</button>
+    </nav>
+    <main>
+      <!-- 取り込み -->
+      <section class="panel active" id="panel-import">
+        <div class="drop" id="drop">
+          ここにCSVファイルをドラッグ＆ドロップ<br />
+          <span class="muted"
+            >またはクリックして選択（カードは自動判別されるよ）</span
+          >
+          <input type="file" id="file" accept=".csv" multiple hidden />
+        </div>
+        <div id="importMsg" class="muted" style="margin-top: 12px"></div>
+        <div id="recentWrap"></div>
+      </section>
+
+      <!-- 未分類 -->
+      <section class="panel" id="panel-unclassified">
+        <div class="card">
+          <div class="muted">
+            ルールに無い店名だよ。細目カテゴリを選ぶと、次から自動で振り分けられるようになる。
+          </div>
+        </div>
+        <div id="uncList"></div>
+      </section>
+
+      <!-- 集計 -->
+      <section class="panel" id="panel-summary">
+        <div class="card">
+          <div class="row">
+            <span>期間：</span>
+            <div class="pill-row" id="periodPills">
+              <span class="pill active" data-p="12">直近12ヶ月</span>
+              <span class="pill" data-p="6">直近6ヶ月</span>
+              <span class="pill" data-p="3">直近3ヶ月</span>
+              <span class="pill" data-p="all">全期間</span>
+            </div>
+          </div>
+          <div class="big" id="totalAmount" style="margin-top: 10px">¥0</div>
+          <div class="muted" id="periodLabel"></div>
+        </div>
+        <div class="card">
+          <div class="grouphead">大グループ別の割合</div>
+          <div style="max-width: 380px; margin: auto">
+            <canvas id="groupChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="grouphead">月ごとの推移</div>
+          <canvas id="trendChart"></canvas>
+        </div>
+        <div class="card" id="breakdownWrap">
+          <div class="grouphead">細目の内訳</div>
+          <div id="breakdown"></div>
+        </div>
+      </section>
+
+      <!-- 設定 -->
+      <section class="panel" id="panel-settings">
+        <div class="card">
+          <div class="grouphead">細目カテゴリの管理</div>
+          <div class="muted">
+            新しい細目を作るときは、どの大グループに入れるか選んでね。
+          </div>
+          <div class="row" style="margin-top: 12px">
+            <input
+              type="text"
+              id="newCatName"
+              placeholder="細目名（例：食費）"
+            />
+            <select id="newCatGroup"></select>
+            <button class="act" id="addCatBtn">追加</button>
+          </div>
+          <div id="catList" style="margin-top: 14px"></div>
+        </div>
+        <div class="card">
+          <div class="grouphead">登録済みルール（店名 → 細目）</div>
+          <div id="ruleList"></div>
+        </div>
+        <div class="card">
+          <div class="grouphead">バックアップ</div>
+          <div class="row">
+            <button class="act" id="exportBtn">データを書き出す</button>
+            <button class="ghost" id="importBtn">バックアップを読み込む</button>
+            <input type="file" id="restoreFile" accept=".json" hidden />
+          </div>
+          <div class="muted" style="margin-top: 8px">
+            明細・ルール・カテゴリを丸ごとファイル保存。たまにやっておくと安心。
+          </div>
+        </div>
+      </section>
+    </main>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ===== データ層（ブラウザ内に保存） =====
+      const STORE = "yurui_kakeibo_v1";
+      const defaultGroups = ["生活費", "娯楽費", "固定費"];
+      const defaultCats = {
+        // 細目名: 大グループ
+        "楽天キャッシュ チャージ": "生活費",
+        交通: "生活費",
+        コンタクト: "生活費",
+        ゲーム: "娯楽費",
+        漫画: "娯楽費",
+        Google: "娯楽費",
+        Amazon: "娯楽費",
+        DMM: "娯楽費",
+        Twitch: "娯楽費",
+        インターネット: "固定費",
+        モバイル: "固定費",
+      };
+      // 初期ルール（店名に含まれる文字列 → 細目）。実物に合わせて育つ。
+      const defaultRules = [
+        { match: "GOOGLE", cat: "Google" },
+        { match: "AMAZON", cat: "Amazon" },
+        { match: "AMZN", cat: "Amazon" },
+        { match: "DMM", cat: "DMM" },
+        { match: "TWITCH", cat: "Twitch" },
+        { match: "オートチャージ", cat: "交通" },
+        { match: "楽天キャッシュ", cat: "楽天キャッシュ チャージ" },
+      ];
+
+      let db = load();
+      function load() {
+        const raw = localStorage.getItem(STORE);
+        if (raw) {
+          try {
+            return JSON.parse(raw);
+          } catch (e) {}
+        }
+        return {
+          groups: [...defaultGroups],
+          cats: { ...defaultCats },
+          rules: [...defaultRules],
+          entries: [],
+        };
+      }
+      function save() {
+        localStorage.setItem(STORE, JSON.stringify(db));
+      }
+
+      // ===== CSV解析 =====
+      function parseCSVLine(line) {
+        const out = [];
+        let cur = "";
+        let q = false;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (c === '"') {
+            if (q && line[i + 1] === '"') {
+              cur += '"';
+              i++;
+            } else q = !q;
+          } else if (c === "," && !q) {
+            out.push(cur);
+            cur = "";
+          } else cur += c;
+        }
+        out.push(cur);
+        return out.map((s) => s.trim());
+      }
+      function toNumber(s) {
+        return parseInt(String(s).replace(/[\\¥,，\s]/g, ""), 10) || 0;
+      }
+      function normDate(s) {
+        s = s.trim();
+        let m = s.match(/(\d{4})[\/年](\d{1,2})[\/月](\d{1,2})/);
+        if (m) {
+          return `${m[1]}-${String(m[2]).padStart(2, "0")}-${String(m[3]).padStart(2, "0")}`;
+        }
+        return s;
+      }
+
+      // カード判別＆抽出。共通形式 {date, name, amount} の配列を返す
+      function extractEntries(text) {
+        const lines = text.split(/\r\n|\n|\r/).filter((l) => l.length > 0);
+        if (lines.length === 0) return [];
+        const first = lines[0];
+
+        // カード2：頭に契約情報、<利用明細> の次行が本ヘッダー
+        if (
+          first.startsWith("ご契約番号") ||
+          lines.some((l) => l.startsWith("<利用明細>"))
+        ) {
+          const idx = lines.findIndex((l) => l.startsWith("<利用明細>"));
+          if (idx < 0) return [];
+          const header = parseCSVLine(lines[idx + 1]);
+          const di = header.indexOf("ご利用日");
+          const ni = header.indexOf("ご利用先など");
+          const ai = header.indexOf("ご利用金額");
+          const res = [];
+          for (let i = idx + 2; i < lines.length; i++) {
+            const c = parseCSVLine(lines[i]);
+            if (c.length < 3 || !c[di]) continue;
+            res.push({
+              date: normDate(c[di]),
+              name: c[ni],
+              amount: toNumber(c[ai]),
+            });
+          }
+          return res;
+        }
+
+        // カード1：1行目がクォート付きヘッダー
+        const header = parseCSVLine(first);
+        const di = header.indexOf("利用日");
+        const ni = header.indexOf("利用店名・商品名");
+        const ai = header.indexOf("利用金額");
+        if (di < 0 || ni < 0 || ai < 0) return null; // 未対応フォーマット
+        const res = [];
+        for (let i = 1; i < lines.length; i++) {
+          const c = parseCSVLine(lines[i]);
+          if (c.length < 3 || !c[di]) continue;
+          res.push({
+            date: normDate(c[di]),
+            name: c[ni],
+            amount: toNumber(c[ai]),
+          });
+        }
+        return res;
+      }
+
+      // ===== 分類 =====
+      function classify(name) {
+        const upper = name.toUpperCase();
+        for (const r of db.rules) {
+          if (upper.includes(r.match.toUpperCase())) return r.cat;
+        }
+        return null; // 未分類
+      }
+
+      // ===== 取り込み処理 =====
+      function importText(text, fname) {
+        const ext = extractEntries(text);
+        if (ext === null) {
+          return { ok: false, msg: `${fname}：対応していないフォーマットかも` };
+        }
+        let added = 0,
+          dup = 0;
+        for (const e of ext) {
+          const key = e.date + "|" + e.name + "|" + e.amount;
+          if (db.entries.some((x) => x.key === key)) {
+            dup++;
+            continue;
+          }
+          db.entries.push({ ...e, key, cat: classify(e.name) });
+          added++;
+        }
+        save();
+        return {
+          ok: true,
+          msg: `${fname}：${added}件追加${dup ? `（重複${dup}件スキップ）` : ""}`,
+        };
+      }
+
+      // ===== 画面共通 =====
+      function fmt(n) {
+        return "¥" + n.toLocaleString("ja-JP");
+      }
+      function toast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 1800);
+      }
+
+      function switchTab(name) {
+        document
+          .querySelectorAll("nav button")
+          .forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+        document
+          .querySelectorAll(".panel")
+          .forEach((p) =>
+            p.classList.toggle("active", p.id === "panel-" + name),
+          );
+        if (name === "unclassified") renderUnclassified();
+        if (name === "summary") renderSummary();
+        if (name === "settings") renderSettings();
+        updateBadge();
+      }
+      document
+        .querySelectorAll("nav button")
+        .forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
+
+      function updateBadge() {
+        const n = db.entries.filter((e) => !e.cat).length;
+        document.getElementById("uncBadge").textContent = n ? `(${n})` : "";
+      }
+
+      // ===== 取り込みUI =====
+      const drop = document.getElementById("drop"),
+        fileInput = document.getElementById("file");
+      drop.onclick = () => fileInput.click();
+      drop.ondragover = (e) => {
+        e.preventDefault();
+        drop.classList.add("over");
+      };
+      drop.ondragleave = () => drop.classList.remove("over");
+      drop.ondrop = (e) => {
+        e.preventDefault();
+        drop.classList.remove("over");
+        handleFiles(e.dataTransfer.files);
+      };
+      fileInput.onchange = () => handleFiles(fileInput.files);
+
+      function handleFiles(files) {
+        const msgs = [];
+        let pending = files.length;
+        [...files].forEach((f) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const res = importText(reader.result, f.name);
+            msgs.push(res.msg);
+            pending--;
+            if (pending === 0) {
+              document.getElementById("importMsg").innerHTML =
+                msgs.join("<br>");
+              renderRecent();
+              updateBadge();
+              toast("取り込み完了");
+            }
+          };
+          reader.readAsText(f, "UTF-8");
+        });
+      }
+
+      function renderRecent() {
+        const recent = [...db.entries]
+          .sort((a, b) => b.date.localeCompare(a.date))
+          .slice(0, 30);
+        if (recent.length === 0) {
+          document.getElementById("recentWrap").innerHTML = "";
+          return;
+        }
+        let h =
+          '<table><tr><th>日付</th><th>店名</th><th class="amount">金額</th><th>カテゴリ</th></tr>';
+        for (const e of recent) {
+          const tag = e.cat
+            ? `<span class="tag">${e.cat}</span>`
+            : `<span class="tag unclassified">未分類</span>`;
+          h += `<tr><td>${e.date}</td><td>${esc(e.name)}</td><td class="amount">${fmt(e.amount)}</td><td>${tag}</td></tr>`;
+        }
+        h +=
+          '</table><div class="muted" style="margin-top:6px;">直近30件を表示</div>';
+        document.getElementById("recentWrap").innerHTML = h;
+      }
+      function esc(s) {
+        return String(s).replace(
+          /[&<>]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c],
+        );
+      }
+
+      // ===== 未分類UI =====
+      function renderUnclassified() {
+        const unc = db.entries.filter((e) => !e.cat);
+        // 店名ごとにまとめる
+        const byName = {};
+        unc.forEach((e) => {
+          (byName[e.name] = byName[e.name] || []).push(e);
+        });
+        const names = Object.keys(byName);
+        if (names.length === 0) {
+          document.getElementById("uncList").innerHTML =
+            '<div class="card">未分類はないよ。えらい！🌸</div>';
+          return;
+        }
+        let h = "";
+        names.forEach((name) => {
+          const list = byName[name];
+          const sum = list.reduce((a, e) => a + e.amount, 0);
+          const opts = catOptions();
+          h += `<div class="card"><div class="row" style="justify-content:space-between;">
+      <div><b>${esc(name)}</b><div class="muted">${list.length}件・合計 ${fmt(sum)}</div></div>
+      <div class="row">
+        <select data-name="${esc(name)}">${opts}</select>
+        <button class="act assignBtn" data-name="${esc(name)}">この店名を振り分け</button>
+      </div></div></div>`;
+        });
+        document.getElementById("uncList").innerHTML = h;
+        document.querySelectorAll(".assignBtn").forEach((btn) => {
+          btn.onclick = () => {
+            const name = btn.dataset.name;
+            const sel = document.querySelector(
+              `select[data-name="${CSS.escape(name)}"]`,
+            );
+            const cat = sel.value;
+            // ルールに追加（店名まるごとを一致条件に）
+            db.rules.push({ match: name, cat });
+            // 既存の同店名エントリにも反映
+            db.entries.forEach((e) => {
+              if (e.name === name && !e.cat) e.cat = cat;
+            });
+            save();
+            renderUnclassified();
+            updateBadge();
+            toast(`「${name}」→ ${cat} に登録`);
+          };
+        });
+      }
+      function catOptions(sel) {
+        return Object.keys(db.cats)
+          .map((c) => `<option ${c === sel ? "selected" : ""}>${c}</option>`)
+          .join("");
+      }
+
+      // ===== 集計UI =====
+      let groupChart,
+        trendChart,
+        curPeriod = 12;
+      document.getElementById("periodPills").onclick = (e) => {
+        if (!e.target.dataset.p) return;
+        document
+          .querySelectorAll("#periodPills .pill")
+          .forEach((p) => p.classList.remove("active"));
+        e.target.classList.add("active");
+        curPeriod =
+          e.target.dataset.p === "all" ? "all" : parseInt(e.target.dataset.p);
+        renderSummary();
+      };
+      function periodEntries() {
+        const cls = db.entries.filter((e) => e.cat);
+        if (curPeriod === "all") return cls;
+        const d = new Date();
+        d.setMonth(d.getMonth() - curPeriod);
+        const cut = d.toISOString().slice(0, 10);
+        return cls.filter((e) => e.date >= cut);
+      }
+      function renderSummary() {
+        const ents = periodEntries();
+        const total = ents.reduce((a, e) => a + e.amount, 0);
+        document.getElementById("totalAmount").textContent = fmt(total);
+        document.getElementById("periodLabel").textContent =
+          curPeriod === "all"
+            ? "全期間"
+            : `直近${curPeriod}ヶ月` + `・分類済み${ents.length}件`;
+
+        // 大グループ別
+        const byGroup = {};
+        db.groups.forEach((g) => (byGroup[g] = 0));
+        ents.forEach((e) => {
+          const g = db.cats[e.cat];
+          if (g != null) byGroup[g] = (byGroup[g] || 0) + e.amount;
+        });
+        const gLabels = Object.keys(byGroup).filter((g) => byGroup[g] > 0);
+        const gData = gLabels.map((g) => byGroup[g]);
+        const palette = [
+          "#ff9ec4",
+          "#ffd28a",
+          "#9ad0ff",
+          "#b5e8a0",
+          "#d3a4ff",
+          "#ffb3a0",
+        ];
+        if (groupChart) groupChart.destroy();
+        groupChart = new Chart(document.getElementById("groupChart"), {
+          type: "doughnut",
+          data: {
+            labels: gLabels,
+            datasets: [{ data: gData, backgroundColor: palette }],
+          },
+          options: { plugins: { legend: { position: "bottom" } } },
+        });
+
+        // 月ごと推移（大グループ別の積み上げ）
+        const months = [...new Set(ents.map((e) => e.date.slice(0, 7)))].sort();
+        const ds = db.groups.map((g, i) => ({
+          label: g,
+          backgroundColor: palette[i % palette.length],
+          data: months.map((m) =>
+            ents
+              .filter((e) => e.date.slice(0, 7) === m && db.cats[e.cat] === g)
+              .reduce((a, e) => a + e.amount, 0),
+          ),
+        }));
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(document.getElementById("trendChart"), {
+          type: "bar",
+          data: { labels: months, datasets: ds },
+          options: {
+            responsive: true,
+            scales: { x: { stacked: true }, y: { stacked: true } },
+            plugins: { legend: { position: "bottom" } },
+          },
+        });
+
+        // 細目内訳
+        const byCat = {};
+        ents.forEach((e) => {
+          byCat[e.cat] = (byCat[e.cat] || 0) + e.amount;
+        });
+        const sorted = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+        const max = sorted.length ? sorted[0][1] : 1;
+        let h = "";
+        db.groups.forEach((g) => {
+          const inG = sorted.filter(([c]) => db.cats[c] === g);
+          if (inG.length === 0) return;
+          h += `<div class="grouphead">${g}</div>`;
+          inG.forEach(([c, v]) => {
+            h += `<div style="margin:8px 0;"><div class="row" style="justify-content:space-between;"><span>${c}</span><span>${fmt(v)}</span></div>
+        <div class="bar" style="width:${Math.max(4, (v / max) * 100)}%;"></div></div>`;
+          });
+        });
+        document.getElementById("breakdown").innerHTML =
+          h || '<div class="muted">データがまだないよ</div>';
+      }
+
+      // ===== 設定UI =====
+      function renderSettings() {
+        // 大グループのselect
+        document.getElementById("newCatGroup").innerHTML = db.groups
+          .map((g) => `<option>${g}</option>`)
+          .join("");
+        // 細目一覧
+        let h = "<table><tr><th>細目</th><th>大グループ</th><th></th></tr>";
+        Object.entries(db.cats).forEach(([c, g]) => {
+          const gopts = db.groups
+            .map((x) => `<option ${x === g ? "selected" : ""}>${x}</option>`)
+            .join("");
+          h += `<tr><td>${c}</td><td><select class="catGroupSel" data-cat="${esc(c)}">${gopts}</select></td>
+      <td><button class="ghost delCat" data-cat="${esc(c)}">削除</button></td></tr>`;
+        });
+        h += "</table>";
+        document.getElementById("catList").innerHTML = h;
+        document.querySelectorAll(".catGroupSel").forEach(
+          (s) =>
+            (s.onchange = () => {
+              db.cats[s.dataset.cat] = s.value;
+              save();
+              toast("変更したよ");
+              renderSummary();
+            }),
+        );
+        document.querySelectorAll(".delCat").forEach(
+          (b) =>
+            (b.onclick = () => {
+              delete db.cats[b.dataset.cat];
+              save();
+              renderSettings();
+              toast("削除したよ");
+            }),
+        );
+
+        // ルール一覧
+        let r = "<table><tr><th>店名に含む文字</th><th>細目</th><th></th></tr>";
+        db.rules.forEach((rule, i) => {
+          r += `<tr><td>${esc(rule.match)}</td><td>${rule.cat}</td><td><button class="ghost delRule" data-i="${i}">削除</button></td></tr>`;
+        });
+        r += "</table>";
+        document.getElementById("ruleList").innerHTML = r;
+        document.querySelectorAll(".delRule").forEach(
+          (b) =>
+            (b.onclick = () => {
+              db.rules.splice(+b.dataset.i, 1);
+              save();
+              renderSettings();
+              toast("ルール削除");
+            }),
+        );
+      }
+      document.getElementById("addCatBtn").onclick = () => {
+        const name = document.getElementById("newCatName").value.trim();
+        const g = document.getElementById("newCatGroup").value;
+        if (!name) {
+          toast("細目名を入れてね");
+          return;
+        }
+        db.cats[name] = g;
+        save();
+        document.getElementById("newCatName").value = "";
+        renderSettings();
+        toast(`「${name}」を${g}に追加`);
+      };
+
+      // ===== バックアップ =====
+      document.getElementById("exportBtn").onclick = () => {
+        const blob = new Blob([JSON.stringify(db, null, 2)], {
+          type: "application/json",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `kakeibo_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+      };
+      document.getElementById("importBtn").onclick = () =>
+        document.getElementById("restoreFile").click();
+      document.getElementById("restoreFile").onchange = (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            db = JSON.parse(reader.result);
+            save();
+            toast("読み込み完了");
+            switchTab("import");
+            renderRecent();
+          } catch (err) {
+            toast("ファイルが読めなかった");
+          }
+        };
+        reader.readAsText(f, "UTF-8");
+      };
+
+      // 初期描画
+      renderRecent();
+      updateBadge();
+    </script>
+  </body>
+</html>
