@@ -895,9 +895,10 @@
         const note = document.getElementById("monthNote");
         if (selectedMonth) {
           list = ents.filter((e) => e.date.slice(0, 7) === selectedMonth);
+          const mTotal = list.reduce((a, e) => a + e.amount, 0);
           note.style.display = "inline-flex";
           document.getElementById("monthNoteText").textContent =
-            `${selectedMonth.slice(0, 4)}年${selectedMonth.slice(5)}月だけ表示中`;
+            `${selectedMonth.slice(0, 4)}年${selectedMonth.slice(5)}月：${fmt(mTotal)}`;
         } else {
           note.style.display = "none";
         }
