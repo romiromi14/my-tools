@@ -46,7 +46,7 @@
       }
       main {
         padding: 20px;
-        max-width: 960px;
+        max-width: 1040px;
         margin: 0 auto;
       }
       .panel {
@@ -192,7 +192,6 @@
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
-        margin: 10px 0;
       }
       .pill {
         padding: 6px 12px;
@@ -249,8 +248,33 @@
       }
       .caret {
         display: inline-block;
-        width: 14px;
+        width: 10px;
+        font-size: 10px;
         color: #ff7eb3;
+        margin-right: 8px;
+      }
+      /* 集計の2列レイアウト */
+      .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 220px;
+        gap: 16px;
+        align-items: start;
+      }
+      .summary-side {
+        position: sticky;
+        top: 16px;
+      }
+      .summary-side .card {
+        margin-bottom: 0;
+      }
+      @media (max-width: 760px) {
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+        .summary-side {
+          position: static;
+          order: -1;
+        }
       }
     </style>
   </head>
@@ -290,39 +314,55 @@
 
       <!-- 集計 -->
       <section class="panel" id="panel-summary">
-        <div class="card">
-          <div class="row">
-            <span>期間：</span>
-            <div class="pill-row" id="periodPills"></div>
+        <div class="summary-grid">
+          <div class="summary-main">
+            <div class="card">
+              <div class="big" id="totalAmount">¥0</div>
+              <div class="muted" id="periodLabel"></div>
+            </div>
+            <div class="card">
+              <div class="grouphead">カテゴリ別の割合</div>
+              <div style="max-width: 380px; margin: auto">
+                <canvas id="groupChart"></canvas>
+              </div>
+            </div>
+            <div class="card">
+              <div class="grouphead">月ごとの推移</div>
+              <div class="muted" style="margin-bottom: 8px">
+                棒グラフの月をクリックすると、下の内訳がその月だけになるよ。
+              </div>
+              <canvas id="trendChart"></canvas>
+            </div>
+            <div class="card" id="breakdownWrap">
+              <div class="row" style="justify-content: space-between">
+                <div class="grouphead" id="breakdownTitle">項目の内訳</div>
+                <span class="monthnote" id="monthNote" style="display: none"
+                  ><span id="monthNoteText"></span
+                  ><button class="ghost" id="clearMonth">
+                    全体に戻す
+                  </button></span
+                >
+              </div>
+              <div class="muted" style="margin-bottom: 6px">
+                項目をクリックすると、中身（店名・日付・金額）が開くよ。
+              </div>
+              <div id="breakdown"></div>
+            </div>
           </div>
-          <div class="big" id="totalAmount" style="margin-top: 10px">¥0</div>
-          <div class="muted" id="periodLabel"></div>
-        </div>
-        <div class="card">
-          <div class="grouphead">カテゴリ別の割合</div>
-          <div style="max-width: 380px; margin: auto">
-            <canvas id="groupChart"></canvas>
+          <div class="summary-side">
+            <div class="card">
+              <div
+                style="font-weight: bold; margin-bottom: 8px; color: #ff5fa0"
+              >
+                期間
+              </div>
+              <div
+                class="pill-row"
+                id="periodPills"
+                style="flex-direction: column; align-items: stretch"
+              ></div>
+            </div>
           </div>
-        </div>
-        <div class="card">
-          <div class="grouphead">月ごとの推移</div>
-          <div class="muted" style="margin-bottom: 8px">
-            棒グラフの月をクリックすると、下の内訳がその月だけになるよ。
-          </div>
-          <canvas id="trendChart"></canvas>
-        </div>
-        <div class="card" id="breakdownWrap">
-          <div class="row" style="justify-content: space-between">
-            <div class="grouphead" id="breakdownTitle">項目の内訳</div>
-            <span class="monthnote" id="monthNote" style="display: none"
-              ><span id="monthNoteText"></span
-              ><button class="ghost" id="clearMonth">全体に戻す</button></span
-            >
-          </div>
-          <div class="muted" style="margin-bottom: 6px">
-            項目をクリックすると、中身（店名・日付・金額）が開くよ。
-          </div>
-          <div id="breakdown"></div>
         </div>
       </section>
 
@@ -372,17 +412,22 @@
       const STORE = "yurui_kakeibo_v1";
       const defaultGroups = ["生活費", "娯楽費", "固定費"];
       const defaultCats = {
-        "楽天キャッシュ チャージ": "生活費",
+        楽天キャッシュ: "生活費",
         交通: "生活費",
         コンタクト: "生活費",
+        "その他(生活費)": "生活費",
         ゲーム: "娯楽費",
         漫画: "娯楽費",
         Google: "娯楽費",
         Amazon: "娯楽費",
         DMM: "娯楽費",
         Twitch: "娯楽費",
+        Apple: "娯楽費",
+        ABEMA: "娯楽費",
+        "その他(娯楽費)": "娯楽費",
         インターネット: "固定費",
         モバイル: "固定費",
+        "その他(固定費)": "固定費",
       };
       const defaultRules = [
         { match: "GOOGLE", cat: "Google" },
@@ -390,8 +435,10 @@
         { match: "AMZN", cat: "Amazon" },
         { match: "DMM", cat: "DMM" },
         { match: "TWITCH", cat: "Twitch" },
+        { match: "APPLE", cat: "Apple" },
+        { match: "ABEMA", cat: "ABEMA" },
         { match: "オートチャージ", cat: "交通" },
-        { match: "楽天キャッシュ", cat: "楽天キャッシュ チャージ" },
+        { match: "楽天キャッシュ", cat: "楽天キャッシュ" },
       ];
 
       let db = load();
@@ -759,7 +806,6 @@
         return cls.filter((e) => e.date.slice(0, 4) === curYear);
       }
       function renderSummary() {
-        // 年がもう存在しない場合のフォールバック
         const years = availableYears();
         if (curYear !== "all" && !years.includes(curYear))
           curYear = years[0] || "all";
@@ -773,7 +819,6 @@
           (curYear === "all" ? "全期間" : `${curYear}年`) +
           `・分類済み${ents.length}件`;
 
-        // カテゴリ別 円グラフ
         const byGroup = {};
         db.groups.forEach((g) => (byGroup[g] = 0));
         ents.forEach((e) => {
@@ -796,7 +841,6 @@
           options: { plugins: { legend: { position: "bottom" } } },
         });
 
-        // 月ごと推移：年選択なら1〜12月の枠固定、全期間なら存在月
         let months;
         if (curYear === "all") {
           months = [...new Set(ents.map((e) => e.date.slice(0, 7)))].sort();
@@ -945,7 +989,6 @@
             }),
         );
 
-        // ルール一覧：項目をその場で付け替え
         let r = "<table><tr><th>店名に含む文字</th><th>項目</th><th></th></tr>";
         db.rules.forEach((rule, i) => {
           r += `<tr><td>${esc(rule.match)}</td>
@@ -975,7 +1018,6 @@
         const oldCat = rule.cat;
         if (newCat === oldCat) return;
         rule.cat = newCat;
-        // このルールに当てはまる過去明細を直すか確認
         const affected = db.entries.filter(
           (e) =>
             e.name.toUpperCase().includes(rule.match.toUpperCase()) &&
