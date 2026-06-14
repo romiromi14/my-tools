@@ -132,6 +132,15 @@
         cursor: pointer;
         font-size: 13px;
       }
+      button.danger {
+        background: #fff;
+        color: #d33;
+        border: 1px solid #f3b3b3;
+        padding: 7px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+      }
       .card {
         background: #fff;
         border-radius: 12px;
@@ -215,6 +224,34 @@
         font-size: 13px;
         color: #b06;
       }
+      .catrow {
+        cursor: pointer;
+        user-select: none;
+      }
+      .catrow:hover {
+        opacity: 0.8;
+      }
+      .detail {
+        background: #fafafa;
+        border-radius: 8px;
+        margin: 4px 0 12px;
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      .detail .dline {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 2px;
+        border-bottom: 1px solid #eee;
+      }
+      .detail .dline:last-child {
+        border-bottom: none;
+      }
+      .caret {
+        display: inline-block;
+        width: 14px;
+        color: #ff7eb3;
+      }
     </style>
   </head>
   <body>
@@ -256,12 +293,7 @@
         <div class="card">
           <div class="row">
             <span>期間：</span>
-            <div class="pill-row" id="periodPills">
-              <span class="pill active" data-p="12">直近12ヶ月</span>
-              <span class="pill" data-p="6">直近6ヶ月</span>
-              <span class="pill" data-p="3">直近3ヶ月</span>
-              <span class="pill" data-p="all">全期間</span>
-            </div>
+            <div class="pill-row" id="periodPills"></div>
           </div>
           <div class="big" id="totalAmount" style="margin-top: 10px">¥0</div>
           <div class="muted" id="periodLabel"></div>
@@ -284,10 +316,11 @@
             <div class="grouphead" id="breakdownTitle">項目の内訳</div>
             <span class="monthnote" id="monthNote" style="display: none"
               ><span id="monthNoteText"></span
-              ><button class="ghost" id="clearMonth">
-                期間全体に戻す
-              </button></span
+              ><button class="ghost" id="clearMonth">全体に戻す</button></span
             >
+          </div>
+          <div class="muted" style="margin-bottom: 6px">
+            項目をクリックすると、中身（店名・日付・金額）が開くよ。
           </div>
           <div id="breakdown"></div>
         </div>
@@ -313,13 +346,17 @@
         </div>
         <div class="card">
           <div class="grouphead">登録済みルール（店名 → 項目）</div>
+          <div class="muted">
+            項目を変えると、そのルールに当てはまる過去の明細も直すか選べるよ。
+          </div>
           <div id="ruleList"></div>
         </div>
         <div class="card">
-          <div class="grouphead">バックアップ</div>
+          <div class="grouphead">バックアップ・データ管理</div>
           <div class="row">
             <button class="act" id="exportBtn">データを書き出す</button>
             <button class="ghost" id="importBtn">バックアップを読み込む</button>
+            <button class="danger" id="resetBtn">全データをリセット</button>
             <input type="file" id="restoreFile" accept=".json" hidden />
           </div>
           <div class="muted" style="margin-top: 8px">
@@ -331,11 +368,10 @@
     <div class="toast" id="toast"></div>
 
     <script>
-      // ===== データ層（ブラウザ内に保存） =====
+      // ===== データ層 =====
       const STORE = "yurui_kakeibo_v1";
       const defaultGroups = ["生活費", "娯楽費", "固定費"];
       const defaultCats = {
-        // 項目名: カテゴリ
         "楽天キャッシュ チャージ": "生活費",
         交通: "生活費",
         コンタクト: "生活費",
@@ -365,6 +401,10 @@
           try {
             const d = JSON.parse(raw);
             if (!d.files) d.files = [];
+            if (!d.entries) d.entries = [];
+            d.entries.forEach((e, i) => {
+              if (e.id == null) e.id = "e" + i + "_" + Date.now();
+            });
             return d;
           } catch (e) {}
         }
@@ -379,6 +419,9 @@
       function save() {
         localStorage.setItem(STORE, JSON.stringify(db));
       }
+      function newId() {
+        return "e" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+      }
 
       // ===== 文字コード対応の読み込み =====
       function readFileSmart(file) {
@@ -386,14 +429,12 @@
           const reader = new FileReader();
           reader.onload = () => {
             const bytes = new Uint8Array(reader.result);
-            // encoding-japanese で自動判定（UTF-8 / Shift_JIS など）
             const detected = Encoding.detect(bytes) || "UTF8";
             const unicodeArr = Encoding.convert(bytes, {
               to: "UNICODE",
               from: detected,
             });
-            const text = Encoding.codeToString(unicodeArr);
-            resolve(text);
+            resolve(Encoding.codeToString(unicodeArr));
           };
           reader.readAsArrayBuffer(file);
         });
@@ -430,13 +471,10 @@
         }
         return s;
       }
-
       function extractEntries(text) {
         const lines = text.split(/\r\n|\n|\r/).filter((l) => l.length > 0);
         if (lines.length === 0) return [];
         const first = lines[0];
-
-        // カード2
         if (
           first.startsWith("ご契約番号") ||
           lines.some((l) => l.startsWith("<利用明細>"))
@@ -444,9 +482,9 @@
           const idx = lines.findIndex((l) => l.startsWith("<利用明細>"));
           if (idx < 0) return [];
           const header = parseCSVLine(lines[idx + 1]);
-          const di = header.indexOf("ご利用日");
-          const ni = header.indexOf("ご利用先など");
-          const ai = header.indexOf("ご利用金額");
+          const di = header.indexOf("ご利用日"),
+            ni = header.indexOf("ご利用先など"),
+            ai = header.indexOf("ご利用金額");
           const res = [];
           for (let i = idx + 2; i < lines.length; i++) {
             const c = parseCSVLine(lines[i]);
@@ -459,12 +497,10 @@
           }
           return res;
         }
-
-        // カード1
         const header = parseCSVLine(first);
-        const di = header.indexOf("利用日");
-        const ni = header.indexOf("利用店名・商品名");
-        const ai = header.indexOf("利用金額");
+        const di = header.indexOf("利用日"),
+          ni = header.indexOf("利用店名・商品名"),
+          ai = header.indexOf("利用金額");
         if (di < 0 || ni < 0 || ai < 0) return null;
         const res = [];
         for (let i = 1; i < lines.length; i++) {
@@ -487,8 +523,6 @@
         }
         return null;
       }
-
-      // 簡易ハッシュ（ファイル内容＋名前で重複ファイル判定）
       function fileSig(fname, text) {
         let h = 0;
         const s = fname + "|" + text;
@@ -497,23 +531,19 @@
         }
         return fname + ":" + text.length + ":" + h;
       }
-
-      // ===== 取り込み（ファイル単位の重複防止） =====
       function importText(text, fname) {
         const sig = fileSig(fname, text);
-        if (db.files.includes(sig)) {
+        if (db.files.includes(sig))
           return {
             ok: false,
             msg: `${fname}：このファイルは取り込み済みだよ（スキップ）`,
           };
-        }
         const ext = extractEntries(text);
-        if (ext === null) {
+        if (ext === null)
           return { ok: false, msg: `${fname}：対応していないフォーマットかも` };
-        }
         let added = 0;
         for (const e of ext) {
-          db.entries.push({ ...e, cat: classify(e.name) });
+          db.entries.push({ ...e, id: newId(), cat: classify(e.name) });
           added++;
         }
         db.files.push(sig);
@@ -521,7 +551,7 @@
         return { ok: true, msg: `${fname}：${added}件追加` };
       }
 
-      // ===== 画面共通 =====
+      // ===== 共通 =====
       function fmt(n) {
         return "¥" + n.toLocaleString("ja-JP");
       }
@@ -531,7 +561,12 @@
         t.classList.add("show");
         setTimeout(() => t.classList.remove("show"), 1800);
       }
-
+      function esc(s) {
+        return String(s).replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      }
       function switchTab(name) {
         document
           .querySelectorAll("nav button")
@@ -549,7 +584,6 @@
       document
         .querySelectorAll("nav button")
         .forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
-
       function updateBadge() {
         const n = db.entries.filter((e) => !e.cat).length;
         document.getElementById("uncBadge").textContent = n ? `(${n})` : "";
@@ -570,20 +604,17 @@
         handleFiles(e.dataTransfer.files);
       };
       fileInput.onchange = () => handleFiles(fileInput.files);
-
       async function handleFiles(files) {
         const msgs = [];
         for (const f of files) {
           const text = await readFileSmart(f);
-          const res = importText(text, f.name);
-          msgs.push(res.msg);
+          msgs.push(importText(text, f.name).msg);
         }
         document.getElementById("importMsg").innerHTML = msgs.join("<br>");
         renderRecent();
         updateBadge();
         toast("取り込み完了");
       }
-
       function renderRecent() {
         const recent = [...db.entries]
           .sort((a, b) => b.date.localeCompare(a.date))
@@ -593,22 +624,33 @@
           return;
         }
         let h =
-          '<table><tr><th>日付</th><th>店名</th><th class="amount">金額</th><th>項目</th></tr>';
+          '<table><tr><th>日付</th><th>店名</th><th class="amount">金額</th><th>項目</th><th></th></tr>';
         for (const e of recent) {
           const tag = e.cat
-            ? `<span class="tag">${e.cat}</span>`
+            ? `<span class="tag">${esc(e.cat)}</span>`
             : `<span class="tag unclassified">未分類</span>`;
-          h += `<tr><td>${e.date}</td><td>${esc(e.name)}</td><td class="amount">${fmt(e.amount)}</td><td>${tag}</td></tr>`;
+          h += `<tr><td>${e.date}</td><td>${esc(e.name)}</td><td class="amount">${fmt(e.amount)}</td><td>${tag}</td>
+      <td><button class="danger delEntry" data-id="${e.id}">削除</button></td></tr>`;
         }
         h +=
           '</table><div class="muted" style="margin-top:6px;">直近30件を表示</div>';
         document.getElementById("recentWrap").innerHTML = h;
+        document
+          .querySelectorAll(".delEntry")
+          .forEach((b) => (b.onclick = () => delEntry(b.dataset.id)));
       }
-      function esc(s) {
-        return String(s).replace(
-          /[&<>"]/g,
-          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
-        );
+      function delEntry(id) {
+        const e = db.entries.find((x) => x.id === id);
+        if (!e) return;
+        if (
+          !confirm(`この明細を削除する？\n${e.date} ${e.name} ${fmt(e.amount)}`)
+        )
+          return;
+        db.entries = db.entries.filter((x) => x.id !== id);
+        save();
+        renderRecent();
+        updateBadge();
+        toast("削除したよ");
       }
 
       // ===== 未分類UI =====
@@ -626,87 +668,112 @@
         }
         let h = "";
         names.forEach((name) => {
-          const list = byName[name];
-          const sum = list.reduce((a, e) => a + e.amount, 0);
+          const sum = byName[name].reduce((a, e) => a + e.amount, 0);
           h += `<div class="card"><div class="row" style="justify-content:space-between;">
-      <div><b>${esc(name)}</b><div class="muted">${list.length}件・合計 ${fmt(sum)}</div></div>
-      <div class="row">
-        <select data-name="${esc(name)}">${catOptions()}</select>
-        <button class="act assignBtn" data-name="${esc(name)}">この店名を振り分け</button>
-      </div></div></div>`;
+      <div><b>${esc(name)}</b><div class="muted">${byName[name].length}件・合計 ${fmt(sum)}</div></div>
+      <div class="row"><select data-name="${esc(name)}">${catOptions()}</select>
+      <button class="act assignBtn" data-name="${esc(name)}">この店名を振り分け</button></div></div></div>`;
         });
         document.getElementById("uncList").innerHTML = h;
-        document.querySelectorAll(".assignBtn").forEach((btn) => {
-          btn.onclick = () => {
-            const name = btn.dataset.name;
-            const sel = document.querySelector(
-              `select[data-name="${CSS.escape(name)}"]`,
-            );
-            const cat = sel.value;
-            db.rules.push({ match: name, cat });
-            db.entries.forEach((e) => {
-              if (e.name === name && !e.cat) e.cat = cat;
-            });
-            save();
-            renderUnclassified();
-            updateBadge();
-            toast(`「${name}」→ ${cat} に登録`);
-          };
-        });
+        document.querySelectorAll(".assignBtn").forEach(
+          (btn) =>
+            (btn.onclick = () => {
+              const name = btn.dataset.name;
+              const cat = document.querySelector(
+                `select[data-name="${CSS.escape(name)}"]`,
+              ).value;
+              db.rules.push({ match: name, cat });
+              db.entries.forEach((e) => {
+                if (e.name === name && !e.cat) e.cat = cat;
+              });
+              save();
+              renderUnclassified();
+              updateBadge();
+              toast(`「${name}」→ ${cat} に登録`);
+            }),
+        );
       }
       function catOptions(sel) {
         return Object.keys(db.cats)
-          .map((c) => `<option ${c === sel ? "selected" : ""}>${c}</option>`)
+          .map(
+            (c) => `<option ${c === sel ? "selected" : ""}>${esc(c)}</option>`,
+          )
           .join("");
       }
 
       // ===== 集計UI =====
       let groupChart,
         trendChart,
-        curPeriod = 12,
-        selectedMonth = null;
-      document.getElementById("periodPills").onclick = (e) => {
-        if (!e.target.dataset.p) return;
-        document
-          .querySelectorAll("#periodPills .pill")
-          .forEach((p) => p.classList.remove("active"));
-        e.target.classList.add("active");
-        curPeriod =
-          e.target.dataset.p === "all" ? "all" : parseInt(e.target.dataset.p);
-        selectedMonth = null;
-        renderSummary();
-      };
+        curYear = "all",
+        selectedMonth = null,
+        openCats = {};
+      const palette = [
+        "#ff9ec4",
+        "#ffd28a",
+        "#9ad0ff",
+        "#b5e8a0",
+        "#d3a4ff",
+        "#ffb3a0",
+        "#a0e0d0",
+        "#ffc0cb",
+      ];
+
+      function availableYears() {
+        return [
+          ...new Set(
+            db.entries.filter((e) => e.cat).map((e) => e.date.slice(0, 4)),
+          ),
+        ]
+          .sort()
+          .reverse();
+      }
+      function renderPeriodPills() {
+        const years = availableYears();
+        let h = years
+          .map(
+            (y) =>
+              `<span class="pill ${curYear === y ? "active" : ""}" data-y="${y}">${y}年</span>`,
+          )
+          .join("");
+        h += `<span class="pill ${curYear === "all" ? "active" : ""}" data-y="all">全期間</span>`;
+        document.getElementById("periodPills").innerHTML = h;
+        document.querySelectorAll("#periodPills .pill").forEach(
+          (p) =>
+            (p.onclick = () => {
+              curYear = p.dataset.y;
+              selectedMonth = null;
+              openCats = {};
+              renderSummary();
+            }),
+        );
+      }
       document.getElementById("clearMonth").onclick = () => {
         selectedMonth = null;
-        renderSummary();
+        openCats = {};
+        renderBreakdown(periodEntries());
       };
 
       function periodEntries() {
         const cls = db.entries.filter((e) => e.cat);
-        if (curPeriod === "all") return cls;
-        const d = new Date();
-        d.setMonth(d.getMonth() - curPeriod);
-        const cut = d.toISOString().slice(0, 10);
-        return cls.filter((e) => e.date >= cut);
+        if (curYear === "all") return cls;
+        return cls.filter((e) => e.date.slice(0, 4) === curYear);
       }
       function renderSummary() {
+        // 年がもう存在しない場合のフォールバック
+        const years = availableYears();
+        if (curYear !== "all" && !years.includes(curYear))
+          curYear = years[0] || "all";
+        renderPeriodPills();
+
         const ents = periodEntries();
-        const total = ents.reduce((a, e) => a + e.amount, 0);
-        document.getElementById("totalAmount").textContent = fmt(total);
+        document.getElementById("totalAmount").textContent = fmt(
+          ents.reduce((a, e) => a + e.amount, 0),
+        );
         document.getElementById("periodLabel").textContent =
-          (curPeriod === "all" ? "全期間" : `直近${curPeriod}ヶ月`) +
+          (curYear === "all" ? "全期間" : `${curYear}年`) +
           `・分類済み${ents.length}件`;
 
-        const palette = [
-          "#ff9ec4",
-          "#ffd28a",
-          "#9ad0ff",
-          "#b5e8a0",
-          "#d3a4ff",
-          "#ffb3a0",
-        ];
-
-        // カテゴリ別（期間全体・円グラフ）
+        // カテゴリ別 円グラフ
         const byGroup = {};
         db.groups.forEach((g) => (byGroup[g] = 0));
         ents.forEach((e) => {
@@ -714,19 +781,31 @@
           if (g != null) byGroup[g] = (byGroup[g] || 0) + e.amount;
         });
         const gLabels = Object.keys(byGroup).filter((g) => byGroup[g] > 0);
-        const gData = gLabels.map((g) => byGroup[g]);
         if (groupChart) groupChart.destroy();
         groupChart = new Chart(document.getElementById("groupChart"), {
           type: "doughnut",
           data: {
             labels: gLabels,
-            datasets: [{ data: gData, backgroundColor: palette }],
+            datasets: [
+              {
+                data: gLabels.map((g) => byGroup[g]),
+                backgroundColor: palette,
+              },
+            ],
           },
           options: { plugins: { legend: { position: "bottom" } } },
         });
 
-        // 月ごと推移（クリックで月選択）
-        const months = [...new Set(ents.map((e) => e.date.slice(0, 7)))].sort();
+        // 月ごと推移：年選択なら1〜12月の枠固定、全期間なら存在月
+        let months;
+        if (curYear === "all") {
+          months = [...new Set(ents.map((e) => e.date.slice(0, 7)))].sort();
+        } else {
+          months = Array.from(
+            { length: 12 },
+            (_, i) => `${curYear}-${String(i + 1).padStart(2, "0")}`,
+          );
+        }
         const ds = db.groups.map((g, i) => ({
           label: g,
           backgroundColor: palette[i % palette.length],
@@ -739,7 +818,7 @@
         if (trendChart) trendChart.destroy();
         trendChart = new Chart(document.getElementById("trendChart"), {
           type: "bar",
-          data: { labels: months, datasets: ds },
+          data: { labels: months.map((m) => m.slice(5) + "月"), datasets: ds },
           options: {
             responsive: true,
             scales: { x: { stacked: true }, y: { stacked: true } },
@@ -747,6 +826,7 @@
             onClick: (evt, els) => {
               if (els.length) {
                 selectedMonth = months[els[0].index];
+                openCats = {};
                 renderBreakdown(ents);
               }
             },
@@ -757,24 +837,22 @@
       }
 
       function renderBreakdown(ents) {
-        // 月選択中ならその月だけに絞る
-        let list = ents,
-          title = "項目の内訳";
+        let list = ents;
         const note = document.getElementById("monthNote");
         if (selectedMonth) {
           list = ents.filter((e) => e.date.slice(0, 7) === selectedMonth);
-          title = `項目の内訳`;
           note.style.display = "inline-flex";
           document.getElementById("monthNoteText").textContent =
-            `${selectedMonth.replace("-", "年")}月だけ表示中`;
+            `${selectedMonth.slice(0, 4)}年${selectedMonth.slice(5)}月だけ表示中`;
         } else {
           note.style.display = "none";
         }
-        document.getElementById("breakdownTitle").textContent = title;
 
-        const byCat = {};
+        const byCat = {},
+          entsByCat = {};
         list.forEach((e) => {
           byCat[e.cat] = (byCat[e.cat] || 0) + e.amount;
+          (entsByCat[e.cat] = entsByCat[e.cat] || []).push(e);
         });
         const sorted = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
         const max = sorted.length ? sorted[0][1] : 1;
@@ -782,28 +860,55 @@
         db.groups.forEach((g) => {
           const inG = sorted.filter(([c]) => db.cats[c] === g);
           if (inG.length === 0) return;
-          h += `<div class="grouphead">${g}</div>`;
+          h += `<div class="grouphead">${esc(g)}</div>`;
           inG.forEach(([c, v]) => {
-            h += `<div style="margin:8px 0;"><div class="row" style="justify-content:space-between;"><span>${c}</span><span>${fmt(v)}</span></div>
+            const open = openCats[c];
+            h += `<div class="catrow" data-cat="${esc(c)}" style="margin:8px 0 2px;">
+        <div class="row" style="justify-content:space-between;">
+          <span><span class="caret">${open ? "▼" : "▶"}</span>${esc(c)}</span><span>${fmt(v)}</span></div>
         <div class="bar" style="width:${Math.max(4, (v / max) * 100)}%;"></div></div>`;
+            if (open) {
+              const dl = [...entsByCat[c]].sort((a, b) =>
+                b.date.localeCompare(a.date),
+              );
+              h +=
+                `<div class="detail">` +
+                dl
+                  .map(
+                    (e) =>
+                      `<div class="dline"><span>${e.date}　${esc(e.name)}</span><span>${fmt(e.amount)}</span></div>`,
+                  )
+                  .join("") +
+                `</div>`;
+            }
           });
         });
         document.getElementById("breakdown").innerHTML =
           h || '<div class="muted">データがまだないよ</div>';
+        document.querySelectorAll(".catrow").forEach(
+          (row) =>
+            (row.onclick = () => {
+              const c = row.dataset.cat;
+              openCats[c] = !openCats[c];
+              renderBreakdown(ents);
+            }),
+        );
       }
 
       // ===== 設定UI =====
       function renderSettings() {
         document.getElementById("newCatGroup").innerHTML = db.groups
-          .map((g) => `<option>${g}</option>`)
+          .map((g) => `<option>${esc(g)}</option>`)
           .join("");
         let h = "<table><tr><th>項目</th><th>カテゴリ</th><th></th></tr>";
         Object.entries(db.cats).forEach(([c, g]) => {
           const gopts = db.groups
-            .map((x) => `<option ${x === g ? "selected" : ""}>${x}</option>`)
+            .map(
+              (x) => `<option ${x === g ? "selected" : ""}>${esc(x)}</option>`,
+            )
             .join("");
           h += `<tr><td>${esc(c)}</td><td><select class="catGroupSel" data-cat="${esc(c)}">${gopts}</select></td>
-      <td><div class="row"><button class="ghost renCat" data-cat="${esc(c)}">名前変更</button><button class="ghost delCat" data-cat="${esc(c)}">削除</button></div></td></tr>`;
+      <td><div class="row"><button class="ghost renCat" data-cat="${esc(c)}">名前変更</button><button class="danger delCat" data-cat="${esc(c)}">削除</button></div></td></tr>`;
         });
         h += "</table>";
         document.getElementById("catList").innerHTML = h;
@@ -821,13 +926,13 @@
         document.querySelectorAll(".delCat").forEach(
           (b) =>
             (b.onclick = () => {
+              const c = b.dataset.cat;
               if (
                 !confirm(
-                  `「${b.dataset.cat}」を削除する？\n（この項目の明細は未分類に戻るよ）`,
+                  `「${c}」を削除する？\n（この項目の明細は未分類に戻るよ）`,
                 )
               )
                 return;
-              const c = b.dataset.cat;
               db.entries.forEach((e) => {
                 if (e.cat === c) e.cat = null;
               });
@@ -840,12 +945,20 @@
             }),
         );
 
+        // ルール一覧：項目をその場で付け替え
         let r = "<table><tr><th>店名に含む文字</th><th>項目</th><th></th></tr>";
         db.rules.forEach((rule, i) => {
-          r += `<tr><td>${esc(rule.match)}</td><td>${esc(rule.cat)}</td><td><button class="ghost delRule" data-i="${i}">削除</button></td></tr>`;
+          r += `<tr><td>${esc(rule.match)}</td>
+      <td><select class="ruleCatSel" data-i="${i}">${catOptions(rule.cat)}</select></td>
+      <td><button class="danger delRule" data-i="${i}">削除</button></td></tr>`;
         });
         r += "</table>";
         document.getElementById("ruleList").innerHTML = r;
+        document
+          .querySelectorAll(".ruleCatSel")
+          .forEach(
+            (s) => (s.onchange = () => changeRuleCat(+s.dataset.i, s.value)),
+          );
         document.querySelectorAll(".delRule").forEach(
           (b) =>
             (b.onclick = () => {
@@ -857,11 +970,37 @@
         );
       }
 
-      // 項目のリネーム（明細・ルールも追従）
+      function changeRuleCat(i, newCat) {
+        const rule = db.rules[i];
+        const oldCat = rule.cat;
+        if (newCat === oldCat) return;
+        rule.cat = newCat;
+        // このルールに当てはまる過去明細を直すか確認
+        const affected = db.entries.filter(
+          (e) =>
+            e.name.toUpperCase().includes(rule.match.toUpperCase()) &&
+            (e.cat === oldCat || e.cat == null),
+        );
+        if (
+          affected.length > 0 &&
+          confirm(
+            `このルールに当てはまる過去の明細 ${affected.length}件 も「${newCat}」に直す？\n（キャンセルすると今後の取り込みぶんだけ変わる）`,
+          )
+        ) {
+          affected.forEach((e) => (e.cat = newCat));
+          toast(`ルールと過去${affected.length}件を変更`);
+        } else {
+          toast("ルールを変更（過去明細はそのまま）");
+        }
+        save();
+        renderSettings();
+        updateBadge();
+      }
+
       function renameCat(oldName) {
-        const newName = prompt(`「${oldName}」を何に変更する？`, oldName);
-        if (newName === null) return;
-        const nn = newName.trim();
+        const nn = (
+          prompt(`「${oldName}」を何に変更する？`, oldName) || ""
+        ).trim();
         if (!nn || nn === oldName) return;
         if (db.cats[nn]) {
           toast("同じ名前の項目が既にあるよ");
@@ -898,7 +1037,7 @@
         toast(`「${name}」を${g}に追加`);
       };
 
-      // ===== バックアップ =====
+      // ===== バックアップ・リセット =====
       document.getElementById("exportBtn").onclick = () => {
         const blob = new Blob([JSON.stringify(db, null, 2)], {
           type: "application/json",
@@ -918,6 +1057,10 @@
           try {
             db = JSON.parse(reader.result);
             if (!db.files) db.files = [];
+            if (!db.entries) db.entries = [];
+            db.entries.forEach((x) => {
+              if (x.id == null) x.id = newId();
+            });
             save();
             toast("読み込み完了");
             switchTab("import");
@@ -928,6 +1071,28 @@
           }
         };
         reader.readAsText(f, "UTF-8");
+      };
+      document.getElementById("resetBtn").onclick = () => {
+        if (
+          !confirm(
+            "本当に全データをリセットする？\n明細・ルール・カテゴリが初期状態に戻るよ。\n（戻せないので、不安なら先にバックアップを書き出してね）",
+          )
+        )
+          return;
+        if (!confirm("もう一度確認。本当にリセットしていい？")) return;
+        localStorage.removeItem(STORE);
+        db = {
+          groups: [...defaultGroups],
+          cats: { ...defaultCats },
+          rules: [...defaultRules],
+          entries: [],
+          files: [],
+        };
+        save();
+        switchTab("import");
+        renderRecent();
+        updateBadge();
+        toast("リセットしたよ");
       };
 
       renderRecent();
