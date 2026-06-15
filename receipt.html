@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>レシート管理</title>
+    <style>
+      :root {
+        --bg: #f5f5f7;
+        --card: #fff;
+        --pri: #ff6b9d;
+        --pri2: #ffd6e3;
+        --txt: #333;
+        --sub: #888;
+        --line: #eee;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--txt);
+        padding-bottom: 70px;
+        font-size: 15px;
+      }
+      header {
+        background: var(--pri);
+        color: #fff;
+        padding: 14px 16px;
+        font-weight: bold;
+        font-size: 17px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .tabbar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        background: var(--card);
+        border-top: 1px solid var(--line);
+        z-index: 10;
+      }
+      .tabbar button {
+        flex: 1;
+        border: 0;
+        background: none;
+        padding: 10px 0;
+        font-size: 12px;
+        color: var(--sub);
+      }
+      .tabbar button.on {
+        color: var(--pri);
+        font-weight: bold;
+      }
+      .tabbar button div {
+        font-size: 20px;
+      }
+      .page {
+        display: none;
+        padding: 14px;
+      }
+      .page.on {
+        display: block;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 14px;
+        resize: vertical;
+      }
+      input,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        font-size: 15px;
+        background: #fff;
+      }
+      label {
+        font-size: 12px;
+        color: var(--sub);
+        display: block;
+        margin: 8px 0 3px;
+      }
+      .btn {
+        background: var(--pri);
+        color: #fff;
+        border: 0;
+        border-radius: 10px;
+        padding: 11px;
+        font-size: 15px;
+        font-weight: bold;
+        width: 100%;
+      }
+      .btn.sub {
+        background: var(--pri2);
+        color: var(--pri);
+      }
+      .btn.mini {
+        width: auto;
+        padding: 5px 12px;
+        font-size: 13px;
+      }
+      .btn.del {
+        background: #ffecec;
+        color: #e55;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .row > * {
+        flex: 1;
+      }
+      .row .fix {
+        flex: 0 0 auto;
+      }
+      .item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
+      }
+      .item .nm {
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+      .muted {
+        color: var(--sub);
+        font-size: 13px;
+      }
+      .sum-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 11px 4px;
+        border-bottom: 1px solid var(--line);
+      }
+      .sum-row:active {
+        background: #fafafa;
+      }
+      .pill {
+        display: inline-block;
+        background: var(--pri2);
+        color: var(--pri);
+        border-radius: 20px;
+        padding: 2px 10px;
+        font-size: 12px;
+      }
+      .big {
+        font-size: 22px;
+        font-weight: bold;
+      }
+      h3 {
+        font-size: 14px;
+        margin: 16px 0 8px;
+        color: var(--sub);
+      }
+      .detail-line {
+        display: flex;
+        justify-content: space-between;
+        padding: 9px 2px;
+        border-bottom: 1px solid var(--line);
+        font-size: 14px;
+      }
+      .x {
+        color: #e55;
+        font-weight: bold;
+        padding: 0 6px;
+      }
+      .back {
+        color: var(--pri);
+        font-size: 14px;
+        margin-bottom: 8px;
+        display: inline-block;
+      }
+      .empty {
+        text-align: center;
+        color: var(--sub);
+        padding: 30px 10px;
+      }
+      .cat-grp {
+        font-weight: bold;
+        margin: 10px 0 4px;
+        color: var(--pri);
+      }
+    </style>
+  </head>
+  <body>
+    <header id="hd">レシート管理</header>
+
+    <!-- 入力 -->
+    <div class="page on" id="p-input">
+      <div class="card">
+        <label>レシートのテキストを貼り付け</label>
+        <textarea
+          id="raw"
+          placeholder="iPhoneの写真からコピーしたテキストを貼ってね"
+        ></textarea>
+        <div style="height: 8px"></div>
+        <button class="btn" onclick="parse()">解析する</button>
+      </div>
+      <div id="parsed"></div>
+    </div>
+
+    <!-- 集計 -->
+    <div class="page" id="p-sum">
+      <div class="card">
+        <label>月を選ぶ</label>
+        <select id="month" onchange="renderSum()"></select>
+      </div>
+      <div id="sumArea"></div>
+    </div>
+
+    <!-- 履歴 -->
+    <div class="page" id="p-hist">
+      <div id="histArea"></div>
+    </div>
+
+    <!-- 設定 -->
+    <div class="page" id="p-set">
+      <div class="card">
+        <h3 style="margin-top: 0">カテゴリ管理</h3>
+        <div id="catEdit"></div>
+        <div class="row" style="margin-top: 10px">
+          <select id="newCatGrp" class="fix" style="flex: 0 0 110px"></select>
+          <input id="newCatName" placeholder="新しい小分類名" />
+          <button class="btn mini fix" onclick="addCat()">追加</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top: 0">商品→カテゴリ辞書</h3>
+        <div class="muted" style="margin-bottom: 8px">
+          一度紐づけた商品。次回から自動提案されるよ。
+        </div>
+        <div id="dictEdit"></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top: 0">データ</h3>
+        <button class="btn sub" onclick="exportCSV()">CSVエクスポート</button>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <button class="on" data-p="input" onclick="tab('input')">
+        <div>📝</div>
+        入力
+      </button>
+      <button data-p="sum" onclick="tab('sum')">
+        <div>📊</div>
+        集計
+      </button>
+      <button data-p="hist" onclick="tab('hist')">
+        <div>🧾</div>
+        履歴
+      </button>
+      <button data-p="set" onclick="tab('set')">
+        <div>⚙️</div>
+        設定
+      </button>
+    </div>
+
+    <script>
+      // ===== データ =====
+      const DEF_CATS = {
+        食費: ["飲み物", "パン", "弁当", "ガム", "お菓子", "ほかの食べ物"],
+        日用品: [
+          "ボディソープ",
+          "洗顔",
+          "シェービングジェル",
+          "保湿クリーム",
+          "デンタルケア用品",
+          "ウェットティッシュ",
+          "汗ふきシート",
+          "デオドラント系",
+          "ほかの日用品",
+        ],
+      };
+      const LS = {
+        get cats() {
+          return (
+            JSON.parse(localStorage.getItem("cats") || "null") ||
+            structuredClone(DEF_CATS)
+          );
+        },
+        set cats(v) {
+          localStorage.setItem("cats", JSON.stringify(v));
+        },
+        get dict() {
+          return JSON.parse(localStorage.getItem("dict") || "{}");
+        },
+        set dict(v) {
+          localStorage.setItem("dict", JSON.stringify(v));
+        },
+        get recs() {
+          return JSON.parse(localStorage.getItem("recs") || "[]");
+        },
+        set recs(v) {
+          localStorage.setItem("recs", JSON.stringify(v));
+        },
+      };
+
+      // ===== タブ =====
+      function tab(p) {
+        document
+          .querySelectorAll(".page")
+          .forEach((e) => e.classList.remove("on"));
+        document.getElementById("p-" + p).classList.add("on");
+        document
+          .querySelectorAll(".tabbar button")
+          .forEach((b) => b.classList.toggle("on", b.dataset.p === p));
+        if (p === "sum") initMonths();
+        if (p === "hist") renderHist();
+        if (p === "set") renderSet();
+      }
+
+      // ===== 前処理 =====
+      function clean(t) {
+        return t
+          .replace(/\uFEFF/g, "")
+          .replace(/\u200B/g, "")
+          .replace(/[ \t]+/g, " ");
+      }
+      // 「·」「*」+数字 を金額として正規化、金額数値を取り出す
+      function moneyOf(line) {
+        // ¥ や · や * のあとに続く数字（カンマ可）
+        const m =
+          line.match(/[¥￥·*]\s*([\d,]+)/) ||
+          line.match(/(?:^|\s)([\d,]{2,})\s*円?$/);
+        if (!m) return null;
+        const n = parseInt(m[1].replace(/,/g, ""), 10);
+        return isNaN(n) ? null : n;
+      }
+
+      // ===== 解析 =====
+      function parse() {
+        const text = clean(document.getElementById("raw").value);
+        if (!text.trim()) {
+          alert("テキストを貼ってね");
+          return;
+        }
+        const lines = text
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter((s) => s);
+
+        // 店名: 1行目の記号を剥がす
+        let store = (lines[0] || "").replace(/^[※＊*\s]+/, "").trim();
+
+        // 日付
+        let date = "";
+        for (const l of lines) {
+          const d = l.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+          if (d) {
+            date = `${d[1]}-${String(d[2]).padStart(2, "0")}-${String(d[3]).padStart(2, "0")}`;
+            break;
+          }
+        }
+        if (!date) date = new Date().toISOString().slice(0, 10);
+
+        // 合計: 「合計」出現以降で最初の金額
+        let total = null,
+          hitGoukei = false;
+        for (const l of lines) {
+          if (!hitGoukei && /合計/.test(l)) {
+            hitGoukei = true;
+            const m = moneyOf(l);
+            if (m) {
+              total = m;
+              break;
+            }
+            continue;
+          }
+          if (hitGoukei) {
+            const m = moneyOf(l);
+            if (m) {
+              total = m;
+              break;
+            }
+          }
+        }
+
+        // 明細: ＊/*/※ 始まり、または「商品名」行＋次行金額
+        const items = [];
+        for (let i = 0; i < lines.length; i++) {
+          const l = lines[i];
+          if (
+            /合計|小計|消費税|税率|内税|税合計|タイショウ|お釣り|お買上|ポイント|楽天ペイ|現金|登録番号|事業者|電話|レジ|伝票|領収/.test(
+              l,
+            )
+          )
+            continue;
+          let m = l.match(/^[＊*※]\s*(.+?)\s*[¥￥·*]\s*([\d,]+)\s*$/); // 同一行に名前+金額
+          if (m) {
+            items.push({
+              name: m[1].trim(),
+              price: parseInt(m[2].replace(/,/g, ""), 10),
+            });
+            continue;
+          }
+          let m2 = l.match(/^[＊*※]\s*(.+)$/); // 名前だけ→次行金額
+          if (m2) {
+            const nm = m2[1].trim();
+            const next = lines[i + 1] || "";
+            const p = moneyOf(next);
+            if (p != null && !/[＊*※]/.test(next)) {
+              items.push({ name: nm, price: p });
+              i++;
+            } else items.push({ name: nm, price: null });
+          }
+        }
+
+        renderParsed({ store, date, total, items });
+      }
+
+      // ===== 解析結果フォーム =====
+      let cur = null;
+      function renderParsed(d) {
+        cur = d;
+        const dict = LS.dict;
+        let h = `<div class="card">
+    <label>店名</label><input id="f-store" value="${esc(d.store)}">
+    <label>日付</label><input id="f-date" type="date" value="${d.date}">
+    <label>合計（参考）</label><input id="f-total" type="number" value="${d.total ?? ""}">
+  </div>`;
+        h += `<div class="card"><h3 style="margin-top:0">明細（${d.items.length}件）</h3>`;
+        if (!d.items.length) {
+          h += `<div class="muted">明細が取れなかったよ。下の「明細を追加」で手入力してね。</div>`;
+        }
+        d.items.forEach((it, idx) => {
+          const guess = dict[it.name] || "";
+          h += `<div class="item">
+      <div class="nm">${esc(it.name)} <span class="x" onclick="rmItem(${idx})">✕</span></div>
+      <div class="row">
+        <input type="number" id="it-price-${idx}" value="${it.price ?? ""}" placeholder="金額" style="flex:0 0 90px">
+        ${catSelect("it-cat-" + idx, guess)}
+      </div>
+    </div>`;
+        });
+        h += `<button class="btn sub mini" onclick="addItem()" style="margin-top:6px">＋ 明細を追加</button></div>`;
+        h += `<button class="btn" onclick="save()">保存する</button>`;
+        document.getElementById("parsed").innerHTML = h;
+      }
+
+      function catSelect(id, sel) {
+        const cats = LS.cats;
+        let o = `<option value="">カテゴリ選択</option>`;
+        for (const g in cats) {
+          o += `<optgroup label="${g}">`;
+          cats[g].forEach(
+            (c) =>
+              (o += `<option ${c === sel ? "selected" : ""}>${c}</option>`),
+          );
+          o += `</optgroup>`;
+        }
+        return `<select id="${id}">${o}</select>`;
+      }
+
+      function rmItem(idx) {
+        cur.items.splice(idx, 1);
+        syncForm();
+        renderParsed(cur);
+      }
+      function addItem() {
+        syncForm();
+        cur.items.push({ name: "", price: null });
+        renderParsed(cur);
+        setTimeout(() => {
+          const els = document.querySelectorAll(".item .nm");
+        }, 0);
+      }
+      // 入力中の値をcurに退避
+      function syncForm() {
+        if (!cur) return;
+        cur.store = val("f-store");
+        cur.date = val("f-date");
+        cur.total = val("f-total");
+        cur.items.forEach((it, idx) => {
+          const p = document.getElementById("it-price-" + idx);
+          if (p) it.price = p.value ? parseInt(p.value, 10) : null;
+        });
+      }
+
+      function save() {
+        syncForm();
+        const store = val("f-store"),
+          date = val("f-date");
+        if (!date) {
+          alert("日付を入れてね");
+          return;
+        }
+        const dict = LS.dict,
+          recs = LS.recs;
+        let added = 0;
+        cur.items.forEach((it, idx) => {
+          const name = (
+            document.querySelector(`.item:nth-of-type(${idx + 1}) .nm`)
+              ?.firstChild?.textContent || it.name
+          ).trim();
+          const realName = it.name; // ✕の前のテキスト
+          const cat = val("it-cat-" + idx);
+          const price = it.price;
+          if (!realName && !price) return;
+          if (cat) dict[realName] = cat; // 学習
+          recs.push({
+            id: Date.now() + "-" + idx,
+            date,
+            store,
+            name: realName,
+            price: price || 0,
+            cat: cat || "未分類",
+            month: date.slice(0, 7),
+          });
+          added++;
+        });
+        LS.dict = dict;
+        LS.recs = recs;
+        alert(added + "件 保存したよ！");
+        cur = null;
+        document.getElementById("raw").value = "";
+        document.getElementById("parsed").innerHTML = "";
+      }
+
+      // ===== 集計 =====
+      function initMonths() {
+        const recs = LS.recs;
+        const months = [...new Set(recs.map((r) => r.month))].sort().reverse();
+        const sel = document.getElementById("month");
+        const prev = sel.value;
+        sel.innerHTML = months.length
+          ? months
+              .map(
+                (m) => `<option ${m === prev ? "selected" : ""}>${m}</option>`,
+              )
+              .join("")
+          : `<option value="">データなし</option>`;
+        renderSum();
+      }
+      function renderSum() {
+        const m = document.getElementById("month").value;
+        const recs = LS.recs.filter((r) => r.month === m);
+        const area = document.getElementById("sumArea");
+        if (!recs.length) {
+          area.innerHTML = `<div class="card empty">この月のデータはまだないよ</div>`;
+          return;
+        }
+        const total = recs.reduce((s, r) => s + r.price, 0);
+        // 小分類ごと合計（大分類でグループ表示）
+        const cats = LS.cats;
+        const byCat = {};
+        recs.forEach((r) => (byCat[r.cat] = (byCat[r.cat] || 0) + r.price));
+        let h = `<div class="card"><div class="muted">${m} の合計</div><div class="big">¥${total.toLocaleString()}</div></div><div class="card">`;
+        for (const g in cats) {
+          const subs = cats[g].filter((c) => byCat[c]);
+          if (!subs.length) continue;
+          h += `<div class="cat-grp">${g}</div>`;
+          subs.forEach((c) => {
+            h += `<div class="sum-row" onclick="drill('${m}','${esc(c)}')"><span>${c}</span><span>¥${byCat[c].toLocaleString()} ›</span></div>`;
+          });
+        }
+        // 未分類
+        if (byCat["未分類"]) {
+          h += `<div class="cat-grp">その他</div><div class="sum-row" onclick="drill('${m}','未分類')"><span>未分類</span><span>¥${byCat["未分類"].toLocaleString()} ›</span></div>`;
+        }
+        h += `</div>`;
+        area.innerHTML = h;
+      }
+      function drill(m, cat) {
+        const recs = LS.recs
+          .filter((r) => r.month === m && r.cat === cat)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        const sum = recs.reduce((s, r) => s + r.price, 0);
+        let h = `<a class="back" onclick="renderSum()">‹ 集計に戻る</a>
+    <div class="card"><div class="muted">${m}・${esc(cat)}</div><div class="big">¥${sum.toLocaleString()}</div></div><div class="card">`;
+        recs.forEach((r) => {
+          h += `<div class="detail-line"><span>${r.date.slice(5)} ${esc(r.name)}<br><span class="muted">${esc(r.store || "")}</span></span><span>¥${r.price.toLocaleString()}</span></div>`;
+        });
+        h += `</div>`;
+        document.getElementById("sumArea").innerHTML = h;
+      }
+
+      // ===== 履歴 =====
+      function renderHist() {
+        const recs = LS.recs
+          .slice()
+          .sort(
+            (a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id),
+          );
+        const area = document.getElementById("histArea");
+        if (!recs.length) {
+          area.innerHTML = `<div class="card empty">まだ記録がないよ</div>`;
+          return;
+        }
+        let h = `<div class="card">`;
+        recs.forEach((r) => {
+          h += `<div class="detail-line">
+      <span>${r.date.slice(5)} ${esc(r.name)} <span class="pill">${esc(r.cat)}</span><br><span class="muted">${esc(r.store || "")}</span></span>
+      <span>¥${r.price.toLocaleString()} <span class="x" onclick="delRec('${r.id}')">✕</span></span></div>`;
+        });
+        h += `</div>`;
+        area.innerHTML = h;
+      }
+      function delRec(id) {
+        if (!confirm("この記録を削除する？")) return;
+        LS.recs = LS.recs.filter((r) => r.id !== id);
+        renderHist();
+      }
+
+      // ===== 設定: カテゴリ =====
+      function renderSet() {
+        const cats = LS.cats;
+        let h = "";
+        for (const g in cats) {
+          h += `<div class="cat-grp">${g}</div>`;
+          cats[g].forEach((c, i) => {
+            h += `<div class="row" style="margin-bottom:6px">
+        <input value="${esc(c)}" onchange="renameCat('${g}',${i},this.value)">
+        <button class="btn mini del fix" onclick="delCat('${g}',${i})">削除</button></div>`;
+          });
+        }
+        document.getElementById("catEdit").innerHTML = h;
+        // 大分類セレクト
+        document.getElementById("newCatGrp").innerHTML = Object.keys(cats)
+          .map((g) => `<option>${g}</option>`)
+          .join("");
+        // 辞書
+        const dict = LS.dict;
+        const keys = Object.keys(dict);
+        let dh = keys.length
+          ? ""
+          : '<div class="muted">まだ学習データがないよ</div>';
+        keys.forEach((k) => {
+          dh += `<div class="row" style="margin-bottom:6px">
+      <span style="flex:1;font-size:13px">${esc(k)}</span>
+      ${catSelect("dict-" + btoa(unescape(encodeURIComponent(k))).replace(/=/g, ""), dict[k])}
+      <button class="btn mini fix" onclick="saveDict('${esc(k)}',this)">更新</button>
+      <button class="btn mini del fix" onclick="delDict('${esc(k)}')">✕</button></div>`;
+        });
+        document.getElementById("dictEdit").innerHTML = dh;
+      }
+      function addCat() {
+        const g = document.getElementById("newCatGrp").value;
+        const n = document.getElementById("newCatName").value.trim();
+        if (!n) return;
+        const cats = LS.cats;
+        cats[g].push(n);
+        LS.cats = cats;
+        document.getElementById("newCatName").value = "";
+        renderSet();
+      }
+      function renameCat(g, i, v) {
+        v = v.trim();
+        if (!v) return;
+        const cats = LS.cats;
+        const old = cats[g][i];
+        cats[g][i] = v;
+        LS.cats = cats;
+        // 既存レコードと辞書も追従
+        const recs = LS.recs;
+        recs.forEach((r) => {
+          if (r.cat === old) r.cat = v;
+        });
+        LS.recs = recs;
+        const dict = LS.dict;
+        for (const k in dict) {
+          if (dict[k] === old) dict[k] = v;
+        }
+        LS.dict = dict;
+      }
+      function delCat(g, i) {
+        if (
+          !confirm("このカテゴリを削除する？（既存の記録は「未分類」に戻るよ）")
+        )
+          return;
+        const cats = LS.cats;
+        const old = cats[g][i];
+        cats[g].splice(i, 1);
+        LS.cats = cats;
+        const recs = LS.recs;
+        recs.forEach((r) => {
+          if (r.cat === old) r.cat = "未分類";
+        });
+        LS.recs = recs;
+        const dict = LS.dict;
+        for (const k in dict) {
+          if (dict[k] === old) delete dict[k];
+        }
+        LS.dict = dict;
+        renderSet();
+      }
+      function saveDict(k, btn) {
+        const sel = btn.previousElementSibling;
+        const dict = LS.dict;
+        dict[k] = sel.value;
+        LS.dict = dict;
+        alert("更新したよ");
+      }
+      function delDict(k) {
+        const dict = LS.dict;
+        delete dict[k];
+        LS.dict = dict;
+        renderSet();
+      }
+
+      // ===== CSV =====
+      function exportCSV() {
+        const recs = LS.recs;
+        if (!recs.length) {
+          alert("データがないよ");
+          return;
+        }
+        let csv = "日付,店名,商品名,カテゴリ,金額\n";
+        recs.forEach(
+          (r) =>
+            (csv += `${r.date},"${r.store}","${r.name}",${r.cat},${r.price}\n`),
+        );
+        const blob = new Blob([`\uFEFF` + csv], { type: "text/csv" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "receipts.csv";
+        a.click();
+      }
+
+      // ===== util =====
+      function val(id) {
+        const e = document.getElementById(id);
+        return e ? e.value : "";
+      }
+      function esc(s) {
+        return (s || "").replace(
+          /[&<>"']/g,
+          (m) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[m],
+        );
+      }
+    </script>
+  </body>
+</html>
