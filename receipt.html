@@ -535,6 +535,10 @@
           alert("日付を入れてね");
           return;
         }
+        const receiptTotal = val("f-total")
+          ? parseInt(val("f-total"), 10)
+          : null;
+        const receiptId = "r" + Date.now();
         const dict = LS.dict,
           recs = LS.recs;
         let added = 0;
@@ -547,12 +551,14 @@
           if (cat) dict[realName] = cat;
           recs.push({
             id: Date.now() + "-" + idx,
+            rid: receiptId,
             date,
             store,
             name: realName,
             price: price || 0,
             cat: cat || "未分類",
             month: date.slice(0, 7),
+            rtotal: receiptTotal,
           });
           added++;
         });
@@ -588,11 +594,25 @@
           return;
         }
         const total = recs.reduce((s, r) => s + r.price, 0);
+        // レシート総額ベース（rid単位で重複排除して合算）
+        const seen = {};
+        let realTotal = 0;
+        recs.forEach((r) => {
+          if (r.rtotal != null && !seen[r.rid]) {
+            seen[r.rid] = 1;
+            realTotal += r.rtotal;
+          }
+        });
+
         // 小分類ごと合計（大分類でグループ表示）
         const cats = LS.cats;
         const byCat = {};
         recs.forEach((r) => (byCat[r.cat] = (byCat[r.cat] || 0) + r.price));
-        let h = `<div class="card"><div class="muted">${m} の合計</div><div class="big">¥${total.toLocaleString()}</div></div><div class="card">`;
+        let h = `<div class="card">
+    <div class="muted">${m} の総額（レシート合計ベース）</div>
+    <div class="big">¥${realTotal.toLocaleString()}</div>
+    <div class="muted" style="margin-top:6px">明細の合計：¥${total.toLocaleString()}</div>
+  </div><div class="card">`;
         for (const g in cats) {
           const subs = cats[g].filter((c) => byCat[c]);
           if (!subs.length) continue;
