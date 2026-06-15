@@ -400,34 +400,57 @@
           }
         }
 
-        // 明細: ＊/*/※ 始まり
+        // 明細抽出
         const items = [];
         const SKIP =
-          /合計|小計|消費税|税率|内税|税合計|タイショウ|タイヨウ|釣|お買上|ポイント|楽天ペイ|現金|登録番号|事業者|電話|レジ|伝票|領収|印は|軽減税率|対象/;
+          /合計|小計|消費税|税率|内税|税合計|タイショウ|タイヨウ|釣|お買上|ポイント|楽天ペイ|現金|登録番号|事業者|電話|レジ|伝票|領収|印は|軽減税率|対象|明細|番号|店$|円$/;
+        const isSym = (s) => /^[＊*※\s\-_=─―ー]+$/.test(s);
+        const isNumOnly = (s) => /^[\d,.\-]+$/.test(s);
+
+        // 方式A: マーカー始まりの商品
         for (let i = 0; i < lines.length; i++) {
+          if (i === 0) continue; // 1行目（店名）は除外
           const l = lines[i];
-          if (SKIP.test(l)) continue;
-          if (/^[＊*※\s\-_=─―ー*]+$/.test(l)) continue; // 記号だけの行（区切り線）を除外
-          let m = l.match(/^[＊*※]\s*(.+?)\s*[¥￥·*]\s*([\d,]+)\s*$/); // 同一行に名前+金額
+          if (SKIP.test(l) || isSym(l)) continue;
+          let m = l.match(/^[＊*※]\s*(.+?)\s*[¥￥·*]\s*([\d,]+)\s*$/);
           if (m) {
             const nm = m[1].trim();
-            if (!nm || /^[\d,.\-]+$/.test(nm)) continue; // 名前が数字だけ→除外
-            items.push({
-              name: nm,
-              price: parseInt(m[2].replace(/,/g, ""), 10),
-            });
+            if (nm && !isNumOnly(nm))
+              items.push({
+                name: nm,
+                price: parseInt(m[2].replace(/,/g, ""), 10),
+              });
             continue;
           }
-          let m2 = l.match(/^[＊*※]\s*(.+)$/); // 名前だけ→次行金額
+          let m2 = l.match(/^[＊*※]\s*(.+)$/);
           if (m2) {
             const nm = m2[1].trim();
-            if (!nm || /^[\d,.\-]+$/.test(nm)) continue; // 名前が数字だけ→除外
+            if (!nm || isNumOnly(nm)) continue;
             const next = lines[i + 1] || "";
             const p = moneyOf(next);
-            if (p != null && !/[＊*※]/.test(next) && !SKIP.test(next)) {
+            if (p != null && !isSym(next) && !SKIP.test(next)) {
               items.push({ name: nm, price: p });
               i++;
             } else items.push({ name: nm, price: null });
+          }
+        }
+
+        // 方式B: マーカーで取れなかった場合 → 「商品名行＋次行が金額」を拾う
+        if (items.length === 0) {
+          for (let i = 1; i < lines.length; i++) {
+            const l = lines[i];
+            if (SKIP.test(l) || isSym(l) || isNumOnly(l)) continue;
+            if (l.length < 3) continue; // 短すぎる行は除外
+            const next = lines[i + 1] || "";
+            const p =
+              moneyOf(next) ??
+              (isNumOnly(next.replace(/,/g, ""))
+                ? parseInt(next.replace(/,/g, ""), 10)
+                : null);
+            if (p != null && !SKIP.test(next)) {
+              items.push({ name: l.replace(/^[＊*※]\s*/, ""), price: p });
+              i++;
+            }
           }
         }
 
