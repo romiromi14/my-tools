@@ -400,20 +400,20 @@
           }
         }
 
-        // 明細: ＊/*/※ 始まり、または「商品名」行＋次行金額
+        // 明細: ＊/*/※ 始まり
         const items = [];
+        const SKIP =
+          /合計|小計|消費税|税率|内税|税合計|タイショウ|タイヨウ|釣|お買上|ポイント|楽天ペイ|現金|登録番号|事業者|電話|レジ|伝票|領収|印は|軽減税率|対象/;
         for (let i = 0; i < lines.length; i++) {
           const l = lines[i];
-          if (
-            /合計|小計|消費税|税率|内税|税合計|タイショウ|お釣り|お買上|ポイント|楽天ペイ|現金|登録番号|事業者|電話|レジ|伝票|領収/.test(
-              l,
-            )
-          )
-            continue;
+          if (SKIP.test(l)) continue;
+          if (/^[＊*※\s\-_=─―ー*]+$/.test(l)) continue; // 記号だけの行（区切り線）を除外
           let m = l.match(/^[＊*※]\s*(.+?)\s*[¥￥·*]\s*([\d,]+)\s*$/); // 同一行に名前+金額
           if (m) {
+            const nm = m[1].trim();
+            if (!nm || /^[\d,.\-]+$/.test(nm)) continue; // 名前が数字だけ→除外
             items.push({
-              name: m[1].trim(),
+              name: nm,
               price: parseInt(m[2].replace(/,/g, ""), 10),
             });
             continue;
@@ -421,9 +421,10 @@
           let m2 = l.match(/^[＊*※]\s*(.+)$/); // 名前だけ→次行金額
           if (m2) {
             const nm = m2[1].trim();
+            if (!nm || /^[\d,.\-]+$/.test(nm)) continue; // 名前が数字だけ→除外
             const next = lines[i + 1] || "";
             const p = moneyOf(next);
-            if (p != null && !/[＊*※]/.test(next)) {
+            if (p != null && !/[＊*※]/.test(next) && !SKIP.test(next)) {
               items.push({ name: nm, price: p });
               i++;
             } else items.push({ name: nm, price: null });
@@ -448,7 +449,7 @@
           h += `<div class="muted">明細が取れなかったよ。下の「明細を追加」で手入力してね。</div>`;
         }
         d.items.forEach((it, idx) => {
-          const guess = dict[it.name] || "";
+          const guess = it.cat !== undefined ? it.cat : dict[it.name] || "";
           h += `<div class="item">
       <div class="nm">${esc(it.name)} <span class="x" onclick="rmItem(${idx})">✕</span></div>
       <div class="row">
@@ -498,6 +499,8 @@
         cur.items.forEach((it, idx) => {
           const p = document.getElementById("it-price-" + idx);
           if (p) it.price = p.value ? parseInt(p.value, 10) : null;
+          const c = document.getElementById("it-cat-" + idx);
+          if (c) it.cat = c.value; // ← カテゴリも退避
         });
       }
 
@@ -513,15 +516,12 @@
           recs = LS.recs;
         let added = 0;
         cur.items.forEach((it, idx) => {
-          const name = (
-            document.querySelector(`.item:nth-of-type(${idx + 1}) .nm`)
-              ?.firstChild?.textContent || it.name
-          ).trim();
-          const realName = it.name; // ✕の前のテキスト
-          const cat = val("it-cat-" + idx);
+          const realName = it.name;
+          const sel = document.getElementById("it-cat-" + idx);
+          const cat = sel ? sel.value : it.cat || "";
           const price = it.price;
           if (!realName && !price) return;
-          if (cat) dict[realName] = cat; // 学習
+          if (cat) dict[realName] = cat;
           recs.push({
             id: Date.now() + "-" + idx,
             date,
