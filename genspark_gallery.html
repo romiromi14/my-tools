@@ -391,10 +391,79 @@
         color: #fca5a5;
       }
 
-      #gallery-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 16px;
+      .btn-layout {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+      .btn-layout.active {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: #a5b4fc;
+        font-weight: 600;
+      }
+
+      /* === Masonry レイアウト === */
+      #gallery-grid.layout-masonry {
+        column-count: 5;
+        column-gap: 16px;
+        display: block;
+      }
+      @media (max-width: 1400px) {
+        #gallery-grid.layout-masonry {
+          column-count: 4;
+        }
+      }
+      @media (max-width: 1100px) {
+        #gallery-grid.layout-masonry {
+          column-count: 3;
+        }
+      }
+      @media (max-width: 800px) {
+        #gallery-grid.layout-masonry {
+          column-count: 2;
+        }
+      }
+      @media (max-width: 500px) {
+        #gallery-grid.layout-masonry {
+          column-count: 1;
+        }
+      }
+      #gallery-grid.layout-masonry .gallery-card {
+        break-inside: avoid;
+        margin-bottom: 16px;
+        display: inline-block;
+        width: 100%;
+      }
+
+      /* === Justified（行揃え）レイアウト === */
+      #gallery-grid.layout-justified {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        column-count: auto; /* Masonry設定の打ち消し */
+      }
+      #gallery-grid.layout-justified .gallery-card {
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        /* 行高は JS で計算して flex-basis を設定 */
+      }
+      #gallery-grid.layout-justified .gallery-card .card-thumb {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #gallery-grid.layout-justified .gallery-card .card-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* 行揃えはきっちりサイズが決まるので cover でクリップなし */
       }
       .gallery-card {
         background: var(--bg-secondary);
@@ -427,15 +496,15 @@
       }
       .card-thumb {
         position: relative;
-        aspect-ratio: 2 / 3;
         overflow: hidden;
         background: var(--bg-primary);
+        /* aspect-ratio: 2 / 3; を削除 */
       }
       .card-thumb img {
         width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center top;
+        height: auto; /* 100% から auto に変更 */
+        display: block;
+        object-fit: contain; /* cover → contain */
         transition: transform 0.4s ease;
       }
       .gallery-card:hover .card-thumb img {
@@ -981,6 +1050,70 @@
         background: var(--accent-hover);
         transform: translateY(-2px);
       }
+      #btn-toggle-prompt {
+        margin: 8px 20px 0;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all var(--transition);
+      }
+      #btn-toggle-prompt:hover {
+        border-color: var(--accent);
+        color: var(--text-primary);
+      }
+      #modal-prompt-section {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+        transition: opacity 0.2s ease;
+      }
+      #modal-prompt-section.collapsed {
+        display: none;
+      }
+      /* 折りたたみ時はモーダルの右ペインを縮める */
+      #modal-info-area.collapsed {
+        flex: 0 0 auto;
+        min-width: 200px;
+      }
+      #btn-toggle-info {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition);
+      }
+      #btn-toggle-info:hover {
+        background: var(--accent);
+        border-color: var(--accent);
+        transform: scale(1.1);
+      }
+
+      /* 情報エリアを完全に隠す */
+      #modal-body.info-hidden #modal-info-area {
+        display: none;
+      }
+      #modal-body.info-hidden #btn-modal-close {
+        right: 16px; /* 情報エリアぶんずれていた位置を画面端に */
+      }
     </style>
   </head>
   <body>
@@ -1014,6 +1147,12 @@
           <div class="sort-group">
             <button class="btn-sort active" data-sort="desc">新しい順</button>
             <button class="btn-sort" data-sort="asc">古い順</button>
+          </div>
+          <div class="sort-group">
+            <button class="btn-layout active" data-layout="masonry">
+              Masonry
+            </button>
+            <button class="btn-layout" data-layout="justified">行揃え</button>
           </div>
         </div>
         <div class="filter-row">
@@ -1076,6 +1215,7 @@
           <button class="btn-nav" id="btn-prev">&#8592;</button>
           <button class="btn-nav" id="btn-next">&#8594;</button>
           <div id="modal-counter">1 / 1</div>
+          <button id="btn-toggle-info" title="情報パネルの表示切替">≡</button>
         </div>
         <div id="modal-info-area">
           <div class="modal-info-header">
@@ -1219,6 +1359,37 @@
           });
         });
 
+        // レイアウト切り替え
+        const layoutBtns = document.querySelectorAll(".btn-layout");
+        const LAYOUT_KEY = "GensparkLayout";
+        let currentLayout = localStorage.getItem(LAYOUT_KEY) || "masonry";
+        applyLayoutButtonState();
+
+        layoutBtns.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            currentLayout = btn.dataset.layout;
+            localStorage.setItem(LAYOUT_KEY, currentLayout);
+            applyLayoutButtonState();
+            renderGallery();
+          });
+        });
+
+        function applyLayoutButtonState() {
+          layoutBtns.forEach((b) =>
+            b.classList.toggle("active", b.dataset.layout === currentLayout),
+          );
+        }
+
+        // ウィンドウリサイズで Justified の再計算
+        let resizeTimer = null;
+        window.addEventListener("resize", () => {
+          if (currentLayout !== "justified") return;
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            applyJustifiedLayout();
+          }, 150);
+        });
+
         btnModalClose.addEventListener("click", closeModal);
         btnPrev.addEventListener("click", () => navigateModal(-1));
         btnNext.addEventListener("click", () => navigateModal(+1));
@@ -1242,7 +1413,62 @@
 
         setupDragPan();
         setupWheelNavigation();
+
+        // プロンプト欄の折りたたみ
+        const btnTogglePrompt = document.getElementById("btn-toggle-prompt");
+        const modalInfoArea = document.getElementById("modal-info-area");
+        const modalPromptSection = document.getElementById(
+          "modal-prompt-section",
+        );
+        const togglePromptIcon = document.getElementById("toggle-prompt-icon");
+        const togglePromptLabel = document.getElementById(
+          "toggle-prompt-label",
+        );
+
+        // localStorage で状態を保存
+        const PROMPT_COLLAPSED_KEY = "GensparkPromptCollapsed";
+        let promptCollapsed =
+          localStorage.getItem(PROMPT_COLLAPSED_KEY) === "true";
+        applyPromptCollapse();
+
+        function applyPromptCollapse() {
+          if (promptCollapsed) {
+            modalPromptSection.classList.add("collapsed");
+            modalInfoArea.classList.add("collapsed");
+            togglePromptIcon.textContent = "▶";
+            togglePromptLabel.textContent = "プロンプトを表示";
+          } else {
+            modalPromptSection.classList.remove("collapsed");
+            modalInfoArea.classList.remove("collapsed");
+            togglePromptIcon.textContent = "▼";
+            togglePromptLabel.textContent = "プロンプトを隠す";
+          }
+        }
+
+        btnTogglePrompt.addEventListener("click", () => {
+          promptCollapsed = !promptCollapsed;
+          localStorage.setItem(PROMPT_COLLAPSED_KEY, String(promptCollapsed));
+          applyPromptCollapse();
+        });
+
         document.addEventListener("keydown", onKeyDown);
+
+        // 情報パネル（プロンプト含む）の表示切替
+        const btnToggleInfo = document.getElementById("btn-toggle-info");
+        const modalBody = document.getElementById("modal-body");
+        const INFO_HIDDEN_KEY = "GensparkInfoHidden";
+        let infoHidden = localStorage.getItem(INFO_HIDDEN_KEY) === "true";
+        applyInfoHidden();
+
+        function applyInfoHidden() {
+          modalBody.classList.toggle("info-hidden", infoHidden);
+        }
+
+        btnToggleInfo.addEventListener("click", () => {
+          infoHidden = !infoHidden;
+          localStorage.setItem(INFO_HIDDEN_KEY, String(infoHidden));
+          applyInfoHidden();
+        });
 
         // 「上に戻る」ボタン
         const btnScrollTop = document.getElementById("btn-scroll-top");
@@ -1884,6 +2110,8 @@
 
       function renderGallery() {
         galleryGrid.innerHTML = "";
+        galleryGrid.className = `layout-${currentLayout}`;
+
         if (filteredItems.length === 0 && allItems.length > 0) {
           noResults.style.display = "block";
           resultCount.textContent = "0 件";
@@ -1894,26 +2122,99 @@
         filteredItems.forEach((item, index) => {
           galleryGrid.appendChild(createCard(item, index));
         });
+
+        if (currentLayout === "justified") {
+          // 画像のサイズ取得後にレイアウト計算
+          requestAnimationFrame(() => applyJustifiedLayout());
+        }
+      }
+
+      function applyJustifiedLayout() {
+        const targetRowHeight = 240; // 目標の行高さ（px）。お好みで調整
+        const gap = 8;
+        const containerWidth = galleryGrid.clientWidth;
+        if (containerWidth === 0) return;
+
+        const cards = Array.from(galleryGrid.children);
+        if (cards.length === 0) return;
+
+        // 各カードのアスペクト比を取得
+        const items = cards.map((card) => {
+          const img = card.querySelector("img");
+          const w = img.naturalWidth || 1;
+          const h = img.naturalHeight || 1;
+          return { card, ratio: w / h };
+        });
+
+        // 画像がまだロードされてないものがあれば、ロード後に再実行
+        const notReady = cards.filter((card) => {
+          const img = card.querySelector("img");
+          return !img.complete || img.naturalWidth === 0;
+        });
+        if (notReady.length > 0) {
+          let remaining = notReady.length;
+          notReady.forEach((card) => {
+            const img = card.querySelector("img");
+            const done = () => {
+              remaining--;
+              if (remaining === 0) applyJustifiedLayout();
+            };
+            img.addEventListener("load", done, { once: true });
+            img.addEventListener("error", done, { once: true });
+          });
+          return;
+        }
+
+        // 行ごとに詰めていく
+        let row = [];
+        let rowRatioSum = 0;
+
+        function flushRow(isLastRow) {
+          if (row.length === 0) return;
+          // 目標行高で各カードに割り当てた幅の合計
+          const totalGap = gap * (row.length - 1);
+          const availableWidth = containerWidth - totalGap;
+          let rowHeight = availableWidth / rowRatioSum;
+          // 最後の行は目標高さを超えないようにする（横いっぱいに引き伸ばさない）
+          if (isLastRow && rowHeight > targetRowHeight * 1.5) {
+            rowHeight = targetRowHeight;
+          }
+          row.forEach(({ card, ratio }) => {
+            const w = rowHeight * ratio;
+            card.style.width = `${w}px`;
+            card.style.height = `${rowHeight + 30}px`; // +30 は card-info の高さ
+            card.querySelector(".card-thumb").style.height = `${rowHeight}px`;
+          });
+        }
+
+        items.forEach((item, i) => {
+          row.push(item);
+          rowRatioSum += item.ratio;
+          // 現在の行が目標高さで横幅を超えるなら確定
+          const totalGap = gap * (row.length - 1);
+          const projectedWidth = targetRowHeight * rowRatioSum + totalGap;
+          if (projectedWidth >= containerWidth) {
+            flushRow(false);
+            row = [];
+            rowRatioSum = 0;
+          }
+        });
+        flushRow(true); // 余った最後の行
       }
 
       function createCard(item, index) {
         const card = document.createElement("article");
         card.className = "gallery-card";
         card.style.animationDelay = `${Math.min(index * 0.04, 0.8)}s`;
-        const promptPreview = item.promptText
-          ? item.promptText.slice(0, 30) +
-            (item.promptText.length > 30 ? "…" : "")
-          : null;
 
         card.innerHTML = `
-              <div class="card-thumb">
-                <img src="${item.thumbUrl}" alt="${escapeHtml(item.filename)}" loading="lazy" decoding="async">
-              </div>
-              <div class="card-info">
-                <div class="card-date">${escapeHtml(item.dateStr)}</div>
-                ${promptPreview ? `<div class="card-prompt">${escapeHtml(promptPreview)}</div>` : `<div class="card-no-prompt">${escapeHtml(item.filename)}</div>`}
-              </div>
-            `;
+        <div class="card-thumb">
+          <img src="${item.thumbUrl}" alt="${escapeHtml(item.filename)}" loading="lazy" decoding="async">
+        </div>
+        <div class="card-info">
+          <div class="card-date">${escapeHtml(item.dateStr)}</div>
+        </div>
+      `;
         card.addEventListener("click", () => openModal(index));
         return card;
       }
