@@ -1086,7 +1086,7 @@
       #btn-toggle-info {
         position: absolute;
         top: 16px;
-        right: 16px;
+        right: calc(320px + 16px + 36px + 8px);
         z-index: 10;
         background: rgba(0, 0, 0, 0.7);
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1105,6 +1105,10 @@
         background: var(--accent);
         border-color: var(--accent);
         transform: scale(1.1);
+      }
+
+      #modal-overlay:has(#modal-body.info-hidden) #btn-toggle-info {
+        right: calc(16px + 36px + 8px);
       }
 
       /* 情報エリアを完全に隠す */
@@ -1215,7 +1219,6 @@
           <button class="btn-nav" id="btn-prev">&#8592;</button>
           <button class="btn-nav" id="btn-next">&#8594;</button>
           <div id="modal-counter">1 / 1</div>
-          <button id="btn-toggle-info" title="情報パネルの表示切替">≡</button>
         </div>
         <div id="modal-info-area">
           <div class="modal-info-header">
@@ -1233,6 +1236,7 @@
       </div>
       <div id="zoom-indicator">100%</div>
       <button id="btn-modal-close" aria-label="閉じる">✕</button>
+      <button id="btn-toggle-info" title="情報パネルの表示切替">≡</button>
     </div>
 
     <div id="loading-overlay">
@@ -1261,6 +1265,7 @@
       let modalIndex = 0;
       let isZoomed = false;
       let currentZoomLevel = 1.0;
+      let currentLayout = localStorage.getItem("GensparkLayout") || "masonry";
 
       let loadedFolderNames = new Set();
 
@@ -1362,7 +1367,6 @@
         // レイアウト切り替え
         const layoutBtns = document.querySelectorAll(".btn-layout");
         const LAYOUT_KEY = "GensparkLayout";
-        let currentLayout = localStorage.getItem(LAYOUT_KEY) || "masonry";
         applyLayoutButtonState();
 
         layoutBtns.forEach((btn) => {
@@ -1413,43 +1417,6 @@
 
         setupDragPan();
         setupWheelNavigation();
-
-        // プロンプト欄の折りたたみ
-        const btnTogglePrompt = document.getElementById("btn-toggle-prompt");
-        const modalInfoArea = document.getElementById("modal-info-area");
-        const modalPromptSection = document.getElementById(
-          "modal-prompt-section",
-        );
-        const togglePromptIcon = document.getElementById("toggle-prompt-icon");
-        const togglePromptLabel = document.getElementById(
-          "toggle-prompt-label",
-        );
-
-        // localStorage で状態を保存
-        const PROMPT_COLLAPSED_KEY = "GensparkPromptCollapsed";
-        let promptCollapsed =
-          localStorage.getItem(PROMPT_COLLAPSED_KEY) === "true";
-        applyPromptCollapse();
-
-        function applyPromptCollapse() {
-          if (promptCollapsed) {
-            modalPromptSection.classList.add("collapsed");
-            modalInfoArea.classList.add("collapsed");
-            togglePromptIcon.textContent = "▶";
-            togglePromptLabel.textContent = "プロンプトを表示";
-          } else {
-            modalPromptSection.classList.remove("collapsed");
-            modalInfoArea.classList.remove("collapsed");
-            togglePromptIcon.textContent = "▼";
-            togglePromptLabel.textContent = "プロンプトを隠す";
-          }
-        }
-
-        btnTogglePrompt.addEventListener("click", () => {
-          promptCollapsed = !promptCollapsed;
-          localStorage.setItem(PROMPT_COLLAPSED_KEY, String(promptCollapsed));
-          applyPromptCollapse();
-        });
 
         document.addEventListener("keydown", onKeyDown);
 
@@ -2130,7 +2097,7 @@
       }
 
       function applyJustifiedLayout() {
-        const targetRowHeight = 240; // 目標の行高さ（px）。お好みで調整
+        const targetRowHeight = 400; // 目標の行高さ（px）。お好みで調整
         const gap = 8;
         const containerWidth = galleryGrid.clientWidth;
         if (containerWidth === 0) return;
