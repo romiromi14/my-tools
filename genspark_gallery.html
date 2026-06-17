@@ -511,12 +511,12 @@
         transform: scale(1.05);
       }
       .card-info {
-        padding: 10px 12px;
+        padding: 6px 12px;
       }
       .card-date {
         font-size: 11px;
         color: var(--text-muted);
-        margin-bottom: 4px;
+        /* margin-bottom: 4px; を削除 */
       }
       .card-prompt {
         font-size: 12px;
@@ -714,6 +714,7 @@
         color: var(--text-muted);
         word-break: break-all;
         margin-bottom: 4px;
+        padding-right: 36px; /* ← 追加: ボタン分のスペース */
       }
       .modal-date {
         font-size: 13px;
@@ -1085,16 +1086,17 @@
       }
       #btn-toggle-info {
         position: absolute;
-        top: 16px;
-        right: calc(320px + 16px + 36px + 8px);
-        z-index: 10;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        top: 12px;
+        right: 12px; /* 情報パネル(320px)の中の右上に来るように */
+        z-index: 11;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         color: #fff;
         width: 36px;
         height: 36px;
         border-radius: 50%;
         font-size: 18px;
+
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -1105,10 +1107,6 @@
         background: var(--accent);
         border-color: var(--accent);
         transform: scale(1.1);
-      }
-
-      #modal-overlay:has(#modal-body.info-hidden) #btn-toggle-info {
-        right: calc(16px + 36px + 8px);
       }
 
       /* 情報エリアを完全に隠す */
@@ -1220,6 +1218,7 @@
           <button class="btn-nav" id="btn-next">&#8594;</button>
           <div id="modal-counter">1 / 1</div>
         </div>
+        <button id="btn-toggle-info" title="情報パネルの表示切替">≡</button>
         <div id="modal-info-area">
           <div class="modal-info-header">
             <div class="modal-filename" id="modal-filename">-</div>
@@ -1236,7 +1235,6 @@
       </div>
       <div id="zoom-indicator">100%</div>
       <button id="btn-modal-close" aria-label="閉じる">✕</button>
-      <button id="btn-toggle-info" title="情報パネルの表示切替">≡</button>
     </div>
 
     <div id="loading-overlay">
