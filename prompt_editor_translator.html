@@ -293,7 +293,7 @@
       function autoGrow(el) {
         el.style.height = "auto";
         const min = parseInt(getComputedStyle(el).minHeight) || 0;
-        el.style.height = Math.max(el.scrollHeight + 4, min) + "px"; // ← +4 を足した
+        el.style.height = Math.max(el.scrollHeight + 6, min) + "px"; // ← +6 を足した
       }
 
       function renumber() {
