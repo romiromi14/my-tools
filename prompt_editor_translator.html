@@ -84,7 +84,7 @@
         border-radius: 4px;
         padding: 8px 10px;
         resize: vertical;
-        min-height: 60px;
+        min-height: 52px;
         font-family: inherit;
       }
       .en:focus {
@@ -292,7 +292,8 @@
 
       function autoGrow(el) {
         el.style.height = "auto";
-        el.style.height = el.scrollHeight + "px";
+        const min = parseInt(getComputedStyle(el).minHeight) || 0;
+        el.style.height = Math.max(el.scrollHeight + 4, min) + "px"; // ← +4 を足した
       }
 
       function renumber() {
@@ -333,6 +334,8 @@
           await new Promise((r) => setTimeout(r, 50));
         }
         status.textContent = "完了";
+        // ↓ 追加：全カードの高さを測り直す
+        document.querySelectorAll("#segments .en").forEach(autoGrow);
       }
 
       async function retranslateAll() {
