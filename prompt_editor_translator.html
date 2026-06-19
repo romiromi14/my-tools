@@ -48,6 +48,11 @@
       button:hover {
         background: #455060;
       }
+      button.copied {
+        background: #3a5a45;
+        border-color: #4a7055;
+        color: #c8e8d0;
+      }
       .row {
         display: flex;
         align-items: flex-start;
@@ -173,8 +178,8 @@
     <div class="label">再統合された結果</div>
     <textarea id="merged" rows="6" readonly></textarea>
     <div class="toolbar">
-      <button onclick="copyMerged()">📋 英文をコピー</button>
-      <button onclick="copyAll()">対訳をコピー</button>
+      <button onclick="copyMerged(this)">📋 英文をコピー</button>
+      <button onclick="copyAll(this)">対訳をコピー</button>
     </div>
 
     <script>
@@ -360,14 +365,24 @@
         status.textContent = "完了";
       }
 
-      function copyMerged() {
+      function flashButton(btn, msg = "✓ コピーしました") {
+        const original = btn.textContent;
+        btn.textContent = msg;
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove("copied");
+        }, 1200);
+      }
+
+      function copyMerged(btn) {
         rebuild();
         const m = document.getElementById("merged");
         navigator.clipboard.writeText(m.value);
-        document.getElementById("status").textContent = "英文をコピーしました";
+        flashButton(btn);
       }
 
-      function copyAll() {
+      function copyAll(btn) {
         const rows = document.querySelectorAll("#segments .row");
         const lines = [];
         rows.forEach((r) => {
@@ -380,7 +395,7 @@
           }
         });
         navigator.clipboard.writeText(lines.join("\n"));
-        document.getElementById("status").textContent = "対訳をコピーしました";
+        flashButton(btn);
       }
 
       document.getElementById("input").addEventListener("paste", () => {
