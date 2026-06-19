@@ -256,6 +256,14 @@
         <div id="dictEdit"></div>
       </div>
       <div class="card">
+        <h3 style="margin-top: 0">店名プリセット</h3>
+        <div id="storeEdit"></div>
+        <div class="row" style="margin-top: 10px">
+          <input id="newStore" placeholder="店名を追加" />
+          <button class="btn mini fix" onclick="addStore()">追加</button>
+        </div>
+      </div>
+      <div class="card">
         <h3 style="margin-top: 0">データ</h3>
         <button class="btn sub" onclick="exportCSV()">CSVエクスポート</button>
       </div>
@@ -317,6 +325,12 @@
         },
         set recs(v) {
           localStorage.setItem("recs", JSON.stringify(v));
+        },
+        get stores() {
+          return JSON.parse(localStorage.getItem("stores") || "[]");
+        },
+        set stores(v) {
+          localStorage.setItem("stores", JSON.stringify(v));
         },
       };
 
@@ -463,10 +477,14 @@
         cur = d;
         const dict = LS.dict;
         let h = `<div class="card">
-    <label>店名</label><input id="f-store" value="${esc(d.store)}">
-    <label>日付</label><input id="f-date" type="date" value="${d.date}">
-    <label>合計（参考）</label><input id="f-total" type="number" value="${d.total ?? ""}">
-  </div>`;
+         <label>店名</label>
+         <div class="row">
+          <input id="f-store" value="${esc(d.store)}" list="storelist" style="flex:1">
+          <datalist id="storelist">${LS.stores.map((s) => `<option value="${esc(s)}">`).join("")}</datalist>
+         </div>
+         <label>日付</label><input id="f-date" type="date" value="${d.date}">
+         <label>合計（参考）</label><input id="f-total" type="number" value="${d.total ?? ""}">
+        </div>`;
         h += `<div class="card"><h3 style="margin-top:0">明細（${d.items.length}件）</h3>`;
         if (!d.items.length) {
           h += `<div class="muted">明細が取れなかったよ。下の「明細を追加」で手入力してね。</div>`;
@@ -474,12 +492,12 @@
         d.items.forEach((it, idx) => {
           const guess = it.cat !== undefined ? it.cat : dict[it.name] || "";
           h += `<div class="item">
-      <div class="nm">${esc(it.name)} <span class="x" onclick="rmItem(${idx})">✕</span></div>
-      <div class="row">
-        <input type="number" id="it-price-${idx}" value="${it.price ?? ""}" placeholder="金額" style="flex:0 0 90px">
-        ${catSelect("it-cat-" + idx, guess)}
-      </div>
-    </div>`;
+           <div class="nm">${esc(it.name)} <span class="x" onclick="rmItem(${idx})">✕</span></div>
+           <div class="row">
+            <input type="number" id="it-price-${idx}" value="${it.price ?? ""}" placeholder="金額" style="flex:0 0 90px">
+            ${catSelect("it-cat-" + idx, guess)}
+           </div>
+          </div>`;
         });
         h += `<button class="btn sub mini" onclick="addItem()" style="margin-top:6px">＋ 明細を追加</button></div>`;
         h += `<button class="btn" onclick="save()">保存する</button>`;
@@ -656,9 +674,16 @@
         }
         let h = `<div class="card">`;
         recs.forEach((r) => {
-          h += `<div class="detail-line">
-      <span>${r.date.slice(5)} ${esc(r.name)} <span class="pill">${esc(r.cat)}</span><br><span class="muted">${esc(r.store || "")}</span></span>
-      <span>¥${r.price.toLocaleString()} <span class="x" onclick="delRec('${r.id}')">✕</span></span></div>`;
+          h += `<div class="item">
+           <div class="row">
+            <span style="flex:1">${r.date.slice(5)} ${esc(r.name)} <span class="pill">${esc(r.cat)}</span></span>
+            <button class="btn mini del fix" onclick="delRec('${r.id}')">削除</button>
+           </div>
+           <div class="row" style="margin-top:6px">
+            <input value="${esc(r.store || "")}" placeholder="店名" onchange="editStore('${r.id}', this.value)" style="flex:1">
+            <span class="fix" style="white-space:nowrap">¥${r.price.toLocaleString()}</span>
+           </div>
+          </div>`;
         });
         h += `</div>`;
         area.innerHTML = h;
@@ -667,6 +692,14 @@
         if (!confirm("この記録を削除する？")) return;
         LS.recs = LS.recs.filter((r) => r.id !== id);
         renderHist();
+      }
+      function editStore(id, v) {
+        const recs = LS.recs;
+        const r = recs.find((x) => x.id === id);
+        if (r) {
+          r.store = v.trim();
+          LS.recs = recs;
+        }
       }
 
       // ===== 設定: カテゴリ =====
@@ -694,12 +727,24 @@
           : '<div class="muted">まだ学習データがないよ</div>';
         keys.forEach((k) => {
           dh += `<div class="row" style="margin-bottom:6px">
-      <span style="flex:1;font-size:13px">${esc(k)}</span>
-      ${catSelect("dict-" + btoa(unescape(encodeURIComponent(k))).replace(/=/g, ""), dict[k])}
-      <button class="btn mini fix" onclick="saveDict('${esc(k)}',this)">更新</button>
-      <button class="btn mini del fix" onclick="delDict('${esc(k)}')">✕</button></div>`;
+           <span style="flex:1;font-size:13px">${esc(k)}</span>
+           ${catSelect("dict-" + btoa(unescape(encodeURIComponent(k))).replace(/=/g, ""), dict[k])}
+           <button class="btn mini fix" onclick="saveDict('${esc(k)}',this)">更新</button>
+           <button class="btn mini del fix" onclick="delDict('${esc(k)}')">✕</button>
+          </div>`;
         });
         document.getElementById("dictEdit").innerHTML = dh;
+        // 店名プリセット
+        const stores = LS.stores;
+        let sh = stores.length
+          ? ""
+          : '<div class="muted">まだ登録がないよ</div>';
+        stores.forEach((s, i) => {
+          sh += `<div class="row" style="margin-bottom:6px">
+           <input value="${esc(s)}" onchange="renameStore(${i},this.value)" style="flex:1">
+           <button class="btn mini del fix" onclick="delStore(${i})">削除</button></div>`;
+        });
+        document.getElementById("storeEdit").innerHTML = sh;
       }
       function addCat() {
         const g = document.getElementById("newCatGrp").value;
@@ -762,6 +807,28 @@
         const dict = LS.dict;
         delete dict[k];
         LS.dict = dict;
+        renderSet();
+      }
+      function addStore() {
+        const n = document.getElementById("newStore").value.trim();
+        if (!n) return;
+        const s = LS.stores;
+        if (!s.includes(n)) s.push(n);
+        LS.stores = s;
+        document.getElementById("newStore").value = "";
+        renderSet();
+      }
+      function renameStore(i, v) {
+        v = v.trim();
+        if (!v) return;
+        const s = LS.stores;
+        s[i] = v;
+        LS.stores = s;
+      }
+      function delStore(i) {
+        const s = LS.stores;
+        s.splice(i, 1);
+        LS.stores = s;
         renderSet();
       }
 
