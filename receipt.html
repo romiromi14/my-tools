@@ -479,8 +479,11 @@
         let h = `<div class="card">
          <label>店名</label>
          <div class="row">
-          <input id="f-store" value="${esc(d.store)}" list="storelist" style="flex:1">
-          <datalist id="storelist">${LS.stores.map((s) => `<option value="${esc(s)}">`).join("")}</datalist>
+          <input id="f-store" value="${esc(d.store)}" style="flex:1">
+          <select class="fix" style="flex:0 0 100px" onchange="if(this.value){document.getElementById('f-store').value=this.value;this.selectedIndex=0;}">
+           <option value="">選択</option>
+           ${LS.stores.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("")}
+          </select>
          </div>
          <label>日付</label><input id="f-date" type="date" value="${d.date}">
          <label>合計（参考）</label><input id="f-total" type="number" value="${d.total ?? ""}">
