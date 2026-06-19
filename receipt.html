@@ -266,6 +266,24 @@
       <div class="card">
         <h3 style="margin-top: 0">データ</h3>
         <button class="btn sub" onclick="exportCSV()">CSVエクスポート</button>
+        <div style="height: 8px"></div>
+        <button class="btn sub" onclick="exportJSON()">
+          バックアップ（JSON保存）
+        </button>
+        <div style="height: 8px"></div>
+        <button
+          class="btn"
+          onclick="document.getElementById('importFile').click()"
+        >
+          バックアップから復元
+        </button>
+        <input
+          type="file"
+          id="importFile"
+          accept=".json,application/json"
+          style="display: none"
+          onchange="importJSON(this)"
+        />
       </div>
     </div>
 
@@ -852,6 +870,58 @@
         a.href = URL.createObjectURL(blob);
         a.download = "receipts.csv";
         a.click();
+      }
+
+      function exportJSON() {
+        const data = {
+          cats: LS.cats,
+          dict: LS.dict,
+          recs: LS.recs,
+          stores: LS.stores,
+          exportedAt: new Date().toISOString(),
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
+        const a = document.createElement("a");
+        const d = new Date().toISOString().slice(0, 10);
+        a.href = URL.createObjectURL(blob);
+        a.download = `receipt-backup-${d}.json`;
+        a.click();
+      }
+
+      function importJSON(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (!data.recs && !data.cats) {
+              alert("バックアップファイルじゃないみたい");
+              input.value = "";
+              return;
+            }
+            if (
+              !confirm(
+                "今のデータを、このバックアップで全部上書きするよ。いい？",
+              )
+            ) {
+              input.value = "";
+              return;
+            }
+            if (data.cats) LS.cats = data.cats;
+            if (data.dict) LS.dict = data.dict;
+            if (data.recs) LS.recs = data.recs;
+            if (data.stores) LS.stores = data.stores;
+            alert("復元したよ！");
+            renderSet();
+          } catch (err) {
+            alert("読み込みに失敗した…ファイルが壊れてるかも");
+          }
+          input.value = "";
+        };
+        reader.readAsText(file);
       }
 
       // ===== util =====
