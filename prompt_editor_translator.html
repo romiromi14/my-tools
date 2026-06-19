@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompt Editor + Translator</title>
+    <style>
+      body {
+        font-family:
+          "Segoe UI", "Helvetica Neue", "Hiragino Sans", "Yu Gothic",
+          "Noto Sans JP", sans-serif;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 16px;
+        background: #1e2228;
+        color: #e8ecf0;
+      }
+      h2 {
+        color: #e8ecf0;
+        font-weight: normal;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        background: #2a2f37;
+        color: #e8ecf0;
+        border: 1px solid #3a3f47;
+        border-radius: 4px;
+        line-height: 1.5;
+      }
+      textarea:focus {
+        outline: none;
+        border-color: #5a8fb5;
+      }
+      button {
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        margin-right: 8px;
+        background: #3a4250;
+        color: #e8ecf0;
+        border: 1px solid #4a5260;
+        border-radius: 4px;
+      }
+      button:hover {
+        background: #455060;
+      }
+      .row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px 0;
+      }
+      .row + .row {
+        border-top: 1px solid #2c3138;
+      }
+      .num {
+        flex: 0 0 auto;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #2f3640;
+        color: #8fb8cc;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 6px;
+      }
+      .body {
+        flex: 1;
+      }
+      .en {
+        width: 100%;
+        box-sizing: border-box;
+        background: #2a2f37;
+        color: #e8ecf0;
+        font-size: 20px;
+        line-height: 1.6;
+        border: 1px solid #3a3f47;
+        border-radius: 4px;
+        padding: 8px 10px;
+        resize: vertical;
+        min-height: 60px;
+        font-family: inherit;
+      }
+      .en:focus {
+        outline: none;
+        border-color: #5a8fb5;
+      }
+      .ja {
+        color: #8fb8cc;
+        margin-top: 8px;
+        padding-left: 10px;
+        border-left: 2px solid #3a4a55;
+        font-size: 18px;
+        line-height: 1.7;
+      }
+      .side {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .mini {
+        padding: 4px 10px;
+        font-size: 13px;
+        margin: 0;
+        background: #2f3640;
+        border: 1px solid #4a5260;
+        color: #b8c4d0;
+        border-radius: 3px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .mini:hover {
+        background: #3a4250;
+        color: #e8ecf0;
+      }
+      .mini.copied {
+        background: #3a5a45;
+        border-color: #4a7055;
+        color: #c8e8d0;
+      }
+      .mini.del:hover {
+        background: #5a3a3a;
+        border-color: #7a4a4a;
+        color: #e8c8c8;
+      }
+      .label {
+        font-size: 14px;
+        margin: 24px 0 8px;
+        color: #b8c4d0;
+      }
+      #output {
+        margin-top: 4px;
+      }
+      #status {
+        color: #888;
+        margin-left: 8px;
+        font-size: 13px;
+      }
+      .toolbar {
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>プロンプト 編集 + 英日対訳ツール</h2>
+    <textarea
+      id="input"
+      rows="8"
+      placeholder="自然言語型プロンプトを貼り付け（自動で分割・翻訳）"
+    ></textarea>
+    <div class="toolbar">
+      <button onclick="run()">分割して翻訳</button>
+      <button onclick="loadSample()">サンプル</button>
+      <span id="status"></span>
+    </div>
+
+    <div class="label">
+      各文（編集・削除・追加できます。日本語訳も自動更新）
+    </div>
+    <div id="segments"></div>
+    <div class="toolbar">
+      <button onclick="addSegment('', true)">＋ 文を追加</button>
+      <button onclick="retranslateAll()">全文を再翻訳</button>
+    </div>
+
+    <div class="label">再統合された結果</div>
+    <textarea id="merged" rows="6" readonly></textarea>
+    <div class="toolbar">
+      <button onclick="copyMerged()">📋 英文をコピー</button>
+      <button onclick="copyAll()">対訳をコピー</button>
+    </div>
+
+    <script>
+      const SAMPLE = `Chest-up portrait shot, shot from a low angle, camera positioned low and tilted upward toward her face. A young Japanese woman in her bedroom, casual selfie-style photo. She is looking directly at the camera, with a relaxed natural posture, her face naturally angled toward the camera. She is standing, with both hands gently touching her cheeks, fingers softly pressed against her face in a cute innocent gesture. She has a pronounced shy bashful expression, with her mouth slightly open. She has large round expressive eyes with bright catchlights. Her hair is medium-length, slightly tousled dark hair with diagonally parted bangs, frames her rounded cheeks. She has a feminine silhouette with a large bust and soft curves, showing sweet vulnerability and endearing charm. She wears a soft baby pink stretchy thin fabric hoodie with cute white heart pattern. Soft natural daylight streams through a nearby window. The overall lighting feels soft, with light coming from the front. Natural candid snapshot, authentic feel, soft natural colors.`;
+
+      function loadSample() {
+        document.getElementById("input").value = SAMPLE;
+        run();
+      }
+
+      function splitSentences(text) {
+        text = text.trim();
+        const abbr = [
+          "e.g.",
+          "i.e.",
+          "etc.",
+          "Mr.",
+          "Mrs.",
+          "Ms.",
+          "Dr.",
+          "St.",
+          "vs.",
+          "cf.",
+        ];
+        abbr.forEach((a, i) => (text = text.split(a).join(`__ABBR${i}__`)));
+        text = text.replace(/(\d)\.(\d)/g, "$1__DOT__$2");
+        let parts = text.split(/(?<=[.!?])\s+/);
+        parts = parts
+          .map((p) => {
+            abbr.forEach((a, i) => (p = p.split(`__ABBR${i}__`).join(a)));
+            return p.split("__DOT__").join(".").trim();
+          })
+          .filter((p) => p);
+        return parts;
+      }
+
+      async function translate(text) {
+        const url =
+          "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=" +
+          encodeURIComponent(text);
+        const res = await fetch(url);
+        const data = await res.json();
+        return data[0].map((seg) => seg[0]).join("");
+      }
+
+      function copyText(btn, text) {
+        navigator.clipboard.writeText(text).then(() => {
+          const original = btn.textContent;
+          btn.textContent = "✓";
+          btn.classList.add("copied");
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.classList.remove("copied");
+          }, 1000);
+        });
+      }
+
+      // 1行カードを生成。doTranslate=true なら作成後に翻訳
+      function addSegment(value = "", doTranslate = false) {
+        const box = document.getElementById("segments");
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `
+          <div class="num"></div>
+          <div class="body">
+            <textarea class="en" rows="1"></textarea>
+            <div class="ja"></div>
+          </div>
+          <div class="side">
+            <button class="mini">copy</button>
+            <button class="mini">訳</button>
+            <button class="mini del">×</button>
+          </div>`;
+        const en = row.querySelector(".en");
+        const ja = row.querySelector(".ja");
+        const [copyBtn, trBtn, delBtn] = row.querySelectorAll(".mini");
+
+        en.value = value;
+        autoGrow(en);
+        en.addEventListener("input", () => {
+          autoGrow(en);
+          rebuild();
+        });
+        copyBtn.onclick = () => copyText(copyBtn, en.value.trim());
+        trBtn.onclick = async () => {
+          ja.textContent = "翻訳中...";
+          try {
+            ja.textContent = await translate(en.value.trim());
+          } catch (e) {
+            ja.textContent = "[翻訳失敗]";
+          }
+        };
+        delBtn.onclick = () => {
+          row.remove();
+          renumber();
+          rebuild();
+        };
+
+        box.appendChild(row);
+        renumber();
+        rebuild();
+
+        if (doTranslate && value.trim()) {
+          (async () => {
+            ja.textContent = "翻訳中...";
+            try {
+              ja.textContent = await translate(value.trim());
+            } catch (e) {
+              ja.textContent = "[翻訳失敗]";
+            }
+          })();
+        }
+        return { row, en, ja };
+      }
+
+      function autoGrow(el) {
+        el.style.height = "auto";
+        el.style.height = el.scrollHeight + "px";
+      }
+
+      function renumber() {
+        document
+          .querySelectorAll("#segments .row .num")
+          .forEach((n, i) => (n.textContent = i + 1));
+      }
+
+      function rebuild() {
+        const segs = [...document.querySelectorAll("#segments .en")]
+          .map((t) => t.value.trim())
+          .filter((t) => t.length > 0);
+        const joined = segs
+          .map((s) => s.replace(/[.\s]+$/, "") + ".")
+          .join(" ");
+        document.getElementById("merged").value = joined;
+      }
+
+      async function run() {
+        const text = document.getElementById("input").value;
+        const status = document.getElementById("status");
+        document.getElementById("segments").innerHTML = "";
+        const sentences = splitSentences(text);
+        if (!sentences.length) {
+          status.textContent = "入力なし";
+          return;
+        }
+
+        const cards = sentences.map((s) => addSegment(s, false));
+        for (let i = 0; i < cards.length; i++) {
+          status.textContent = `翻訳中 ${i + 1}/${cards.length}...`;
+          cards[i].ja.textContent = "翻訳中...";
+          try {
+            cards[i].ja.textContent = await translate(sentences[i]);
+          } catch (e) {
+            cards[i].ja.textContent = "[翻訳失敗]";
+          }
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        status.textContent = "完了";
+      }
+
+      async function retranslateAll() {
+        const rows = [...document.querySelectorAll("#segments .row")];
+        const status = document.getElementById("status");
+        for (let i = 0; i < rows.length; i++) {
+          const en = rows[i].querySelector(".en").value.trim();
+          const ja = rows[i].querySelector(".ja");
+          if (!en) {
+            ja.textContent = "";
+            continue;
+          }
+          status.textContent = `再翻訳中 ${i + 1}/${rows.length}...`;
+          ja.textContent = "翻訳中...";
+          try {
+            ja.textContent = await translate(en);
+          } catch (e) {
+            ja.textContent = "[翻訳失敗]";
+          }
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        status.textContent = "完了";
+      }
+
+      function copyMerged() {
+        rebuild();
+        const m = document.getElementById("merged");
+        navigator.clipboard.writeText(m.value);
+        document.getElementById("status").textContent = "英文をコピーしました";
+      }
+
+      function copyAll() {
+        const rows = document.querySelectorAll("#segments .row");
+        const lines = [];
+        rows.forEach((r) => {
+          const en = r.querySelector(".en").value.trim();
+          const ja = r.querySelector(".ja").textContent.trim();
+          if (en) {
+            lines.push(en);
+            lines.push(ja);
+            lines.push("");
+          }
+        });
+        navigator.clipboard.writeText(lines.join("\n"));
+        document.getElementById("status").textContent = "対訳をコピーしました";
+      }
+
+      document.getElementById("input").addEventListener("paste", () => {
+        setTimeout(run, 0);
+      });
+    </script>
+  </body>
+</html>
