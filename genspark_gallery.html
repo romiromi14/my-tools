@@ -633,6 +633,8 @@
         transition: all 0.3s ease;
         border-radius: 8px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        user-select: none;
+        -webkit-user-drag: none;
       }
 
       .carousel-img.side {
@@ -645,6 +647,8 @@
         transition: all 0.3s ease;
         border-radius: 8px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        user-select: none;
+        -webkit-user-drag: none;
       }
 
       .carousel-img.side:hover {
@@ -1110,6 +1114,294 @@
       #modal-body.info-hidden #modal-info-area {
         display: none;
       }
+
+      /* === ①②選択ボタン === */
+      .card-thumb {
+        position: relative; /* 既に指定済みなら重複OK */
+      }
+      .card-compare-btns {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        gap: 6px;
+        z-index: 3;
+        opacity: 0;
+        transition: opacity var(--transition);
+        pointer-events: none;
+      }
+      /* カードにマウスを乗せたら表示 */
+      .gallery-card:hover .card-compare-btns {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      /* 選択済みのカードは常に表示 */
+      .gallery-card.selected-1 .card-compare-btns,
+      .gallery-card.selected-2 .card-compare-btns {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .btn-compare-pick {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+        transition: all var(--transition);
+        padding: 0;
+        line-height: 1;
+      }
+      .btn-compare-pick:hover {
+        background: rgba(0, 0, 0, 0.8);
+        border-color: #fff;
+        transform: scale(1.1);
+      }
+      .btn-compare-pick.picked-1 {
+        background: #4facfe;
+        border-color: #4facfe;
+        color: #fff;
+      }
+      .btn-compare-pick.picked-2 {
+        background: #34d399;
+        border-color: #34d399;
+        color: #0d1117;
+      }
+      .gallery-card.selected-1 {
+        outline: 3px solid #4facfe;
+        outline-offset: -3px;
+      }
+      .gallery-card.selected-2 {
+        outline: 3px solid #34d399;
+        outline-offset: -3px;
+      }
+
+      /* === 比較ボタン（ヘッダー） === */
+      #btn-compare {
+        background: linear-gradient(135deg, #4facfe, #34d399);
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        opacity: 0.4;
+        pointer-events: none;
+        transition: all var(--transition);
+      }
+      #btn-compare.ready {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #btn-compare.ready:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+      }
+
+      /* === 比較モーダル === */
+      #compare-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.92);
+        z-index: 1100;
+        backdrop-filter: blur(4px);
+        animation: fadeIn 0.2s ease;
+      }
+      #compare-body {
+        position: relative;
+        width: 96vw;
+        max-width: 1400px;
+        height: 90vh;
+        margin: auto;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8);
+      }
+      .compare-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+      .compare-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+      .compare-legend {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .compare-legend .leg-add {
+        color: #34d399;
+      }
+      .compare-legend .leg-del {
+        color: #fca5a5;
+      }
+      #btn-compare-close {
+        background: rgba(0, 0, 0, 0.5);
+        border: none;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+        color: #fff;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      #btn-compare-close:hover {
+        background: var(--accent);
+      }
+      .compare-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--border);
+        flex: 1;
+        overflow: hidden;
+      }
+      .compare-col {
+        background: var(--bg-secondary);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .compare-col-head {
+        padding: 10px 16px;
+        font-size: 12px;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border);
+        word-break: break-all;
+        flex-shrink: 0;
+      }
+      .compare-col-head .pick-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        font-weight: 700;
+        margin-right: 8px;
+        color: #fff;
+      }
+      .compare-col:nth-child(1) .pick-badge {
+        background: #4facfe;
+      }
+      .compare-col:nth-child(2) .pick-badge {
+        background: #34d399;
+        color: #0d1117;
+      }
+      .compare-diff {
+        padding: 12px 16px;
+        overflow-y: auto;
+        flex: 1;
+        font-size: 13px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .diff-line {
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin: 1px 0;
+      }
+      .diff-line.same {
+        color: var(--text-secondary);
+      }
+      .diff-line.add {
+        background: rgba(52, 211, 153, 0.15);
+        color: #6ee7b7;
+      }
+      .diff-line.del {
+        background: rgba(239, 68, 68, 0.15);
+        color: #fca5a5;
+      }
+      .diff-line.empty {
+        opacity: 0.25;
+      }
+      /* 右側の連結ミニサムネ */
+      #compare-mini {
+        position: absolute;
+        top: 50%;
+        right: 16px;
+        transform: translateY(-50%);
+        z-index: 1105;
+        display: flex;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 6px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        cursor: zoom-in;
+        transition: transform var(--transition);
+      }
+      #compare-mini:hover {
+        transform: translateY(-50%) scale(1.05);
+      }
+      #compare-mini img {
+        width: auto;
+        max-width: 110px;
+        height: auto;
+        object-fit: contain;
+        border-radius: 4px;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      /* 連結拡大ビュー */
+      #compare-zoom {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 20;
+        align-items: center;
+        justify-content: center;
+        cursor: zoom-out;
+      }
+      .compare-zoom-inner {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        max-width: 96%;
+        max-height: 94%;
+      }
+      .compare-zoom-inner img {
+        max-width: 48%;
+        max-height: 94vh;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+        user-select: none;
+        -webkit-user-drag: none;
+      }
     </style>
   </head>
   <body>
@@ -1122,6 +1414,7 @@
         <button id="btn-open-folder">📂 フォルダを追加</button>
         <div id="saved-folders"></div>
         <span id="status-bar"></span>
+        <button id="btn-compare">⚖️ プロンプト比較</button>
       </div>
     </header>
 
@@ -1231,6 +1524,45 @@
       </div>
     </div>
 
+    <div id="compare-overlay" role="dialog">
+      <div id="compare-body">
+        <div class="compare-header">
+          <div class="compare-title">プロンプト比較</div>
+          <div class="compare-legend">
+            <span class="leg-del">■ 1のみ</span>
+            <span class="leg-add">■ 2のみ</span>
+            <span>■ 共通</span>
+          </div>
+          <button id="btn-compare-close" aria-label="閉じる">✕</button>
+        </div>
+        <div class="compare-columns">
+          <div class="compare-col">
+            <div class="compare-col-head" id="compare-head-1">
+              <span class="pick-badge">1</span><span></span>
+            </div>
+            <div class="compare-diff" id="compare-diff-1"></div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-head" id="compare-head-2">
+              <span class="pick-badge">2</span><span></span>
+            </div>
+            <div class="compare-diff" id="compare-diff-2"></div>
+          </div>
+        </div>
+
+        <div id="compare-zoom">
+          <div class="compare-zoom-inner">
+            <img id="compare-zoom-1" src="" alt="" />
+            <img id="compare-zoom-2" src="" alt="" />
+          </div>
+        </div>
+      </div>
+      <div id="compare-mini">
+        <img id="compare-mini-1" src="" alt="" />
+        <img id="compare-mini-2" src="" alt="" />
+      </div>
+    </div>
+
     <div id="loading-overlay">
       <div class="spinner"></div>
       <div class="loading-text" id="loading-text">読み込み中...</div>
@@ -1255,6 +1587,8 @@
       let activeFilters = new Set();
       let searchQuery = "";
       let modalIndex = 0;
+      let comparePick1 = null;
+      let comparePick2 = null;
       let isZoomed = false;
       let currentZoomLevel = 1.0;
       let currentLayout = localStorage.getItem("GensparkLayout") || "masonry";
@@ -1411,6 +1745,51 @@
         setupWheelNavigation();
 
         document.addEventListener("keydown", onKeyDown);
+
+        // 比較機能
+        document
+          .getElementById("btn-compare")
+          .addEventListener("click", openCompareModal);
+        document
+          .getElementById("btn-compare-close")
+          .addEventListener("click", closeCompareModal);
+        document
+          .getElementById("compare-overlay")
+          .addEventListener("click", (e) => {
+            if (e.target.id === "compare-overlay") closeCompareModal();
+          });
+
+        // Ctrl+左クリックで比較モーダルを開く
+        document.addEventListener("click", (e) => {
+          if (!e.ctrlKey || e.button !== 0) return;
+          // モーダルが開いてるときは無視
+          if (modalOverlay.style.display === "block") return;
+          if (
+            document.getElementById("compare-overlay").style.display === "block"
+          )
+            return;
+          if (comparePick1 && comparePick2) {
+            e.preventDefault();
+            openCompareModal();
+          } else {
+            showToast("1と2を選んでね");
+          }
+        });
+
+        // 連結ミニサムネをクリックで拡大
+        const compareMini = document.getElementById("compare-mini");
+        const compareZoom = document.getElementById("compare-zoom");
+
+        compareMini.addEventListener("click", () => {
+          document.getElementById("compare-zoom-1").src = comparePick1.imgUrl;
+          document.getElementById("compare-zoom-2").src = comparePick2.imgUrl;
+          compareZoom.style.display = "flex";
+        });
+        compareZoom.addEventListener("click", () => {
+          compareZoom.style.display = "none";
+          document.getElementById("compare-zoom-1").src = "";
+          document.getElementById("compare-zoom-2").src = "";
+        });
 
         // 情報パネル（プロンプト含む）の表示切替
         const btnToggleInfo = document.getElementById("btn-toggle-info");
@@ -2166,16 +2545,77 @@
         card.className = "gallery-card";
         card.style.animationDelay = `${Math.min(index * 0.04, 0.8)}s`;
 
+        // 選択中の見た目を反映
+        if (comparePick1 && comparePick1.key === item.key)
+          card.classList.add("selected-1");
+        if (comparePick2 && comparePick2.key === item.key)
+          card.classList.add("selected-2");
+
         card.innerHTML = `
         <div class="card-thumb">
+          <div class="card-compare-btns">
+            <button class="btn-compare-pick btn-pick-1" title="1に選択">1</button>
+            <button class="btn-compare-pick btn-pick-2" title="2に選択">2</button>
+          </div>
           <img src="${item.thumbUrl}" alt="${escapeHtml(item.filename)}" loading="lazy" decoding="async">
         </div>
         <div class="card-info">
           <div class="card-date">${escapeHtml(item.dateStr)}</div>
         </div>
       `;
-        card.addEventListener("click", () => openModal(index));
+
+        // ①②ボタンの状態反映
+        const btn1 = card.querySelector(".btn-pick-1");
+        const btn2 = card.querySelector(".btn-pick-2");
+        if (comparePick1 && comparePick1.key === item.key)
+          btn1.classList.add("picked-1");
+        if (comparePick2 && comparePick2.key === item.key)
+          btn2.classList.add("picked-2");
+
+        btn1.addEventListener("click", (e) => {
+          e.stopPropagation();
+          togglePick(1, item);
+        });
+        btn2.addEventListener("click", (e) => {
+          e.stopPropagation();
+          togglePick(2, item);
+        });
+
+        card.addEventListener("click", (e) => {
+          if (e.ctrlKey) return; // Ctrl押下時はモーダルを開かない
+          openModal(index);
+        });
+
         return card;
+      }
+
+      function togglePick(slot, item) {
+        if (slot === 1) {
+          if (comparePick1 && comparePick1.key === item.key) {
+            comparePick1 = null; // 同じものを再クリック → 解除
+          } else {
+            if (comparePick2 && comparePick2.key === item.key)
+              comparePick2 = null; // ②と被ったら②を外す
+            comparePick1 = item; // 付け替え
+          }
+        } else {
+          if (comparePick2 && comparePick2.key === item.key) {
+            comparePick2 = null;
+          } else {
+            if (comparePick1 && comparePick1.key === item.key)
+              comparePick1 = null;
+            comparePick2 = item;
+          }
+        }
+        updateCompareButton();
+        renderGallery(); // 選択状態の見た目を反映
+      }
+
+      function updateCompareButton() {
+        const btn = document.getElementById("btn-compare");
+        if (!btn) return;
+        const ready = comparePick1 && comparePick2;
+        btn.classList.toggle("ready", !!ready);
       }
 
       function openModal(index) {
@@ -2346,6 +2786,107 @@
           document.body.removeChild(ta);
           showToast("📋 コピーしました");
         }
+      }
+
+      // 行単位 LCS diff
+      function diffLines(textA, textB) {
+        const norm = (t) =>
+          t
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n")
+            .split(/\n+/)
+            .flatMap((line) => line.split(/(?<=[.!?])\s+/))
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+        const a = norm(textA);
+        const b = norm(textB);
+        const n = a.length,
+          m = b.length;
+
+        const dp = Array.from({ length: n + 1 }, () =>
+          new Array(m + 1).fill(0),
+        );
+        for (let i = 1; i <= n; i++) {
+          for (let j = 1; j <= m; j++) {
+            dp[i][j] =
+              a[i - 1] === b[j - 1]
+                ? dp[i - 1][j - 1] + 1
+                : Math.max(dp[i - 1][j], dp[i][j - 1]);
+          }
+        }
+
+        const left = [],
+          right = [];
+        let i = n,
+          j = m;
+        while (i > 0 && j > 0) {
+          if (a[i - 1] === b[j - 1]) {
+            left.unshift({ text: a[i - 1], type: "same" });
+            right.unshift({ text: b[j - 1], type: "same" });
+            i--;
+            j--;
+          } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+            left.unshift({ text: a[i - 1], type: "del" });
+            right.unshift({ text: "", type: "empty" });
+            i--;
+          } else {
+            left.unshift({ text: "", type: "empty" });
+            right.unshift({ text: b[j - 1], type: "add" });
+            j--;
+          }
+        }
+        while (i > 0) {
+          left.unshift({ text: a[i - 1], type: "del" });
+          right.unshift({ text: "", type: "empty" });
+          i--;
+        }
+        while (j > 0) {
+          left.unshift({ text: "", type: "empty" });
+          right.unshift({ text: b[j - 1], type: "add" });
+          j--;
+        }
+        return { left, right };
+      }
+
+      function renderDiffColumn(el, lines) {
+        el.innerHTML = "";
+        lines.forEach((ln) => {
+          const div = document.createElement("div");
+          div.className = `diff-line ${ln.type}`;
+          div.textContent = ln.text === "" ? "\u00A0" : ln.text;
+          el.appendChild(div);
+        });
+      }
+
+      function openCompareModal() {
+        if (!comparePick1 || !comparePick2) return;
+        const { left, right } = diffLines(
+          comparePick1.promptText,
+          comparePick2.promptText,
+        );
+
+        document.querySelector("#compare-head-1 span:last-child").textContent =
+          comparePick1.filename;
+        document.querySelector("#compare-head-2 span:last-child").textContent =
+          comparePick2.filename;
+
+        document.getElementById("compare-mini-1").src = comparePick1.thumbUrl;
+        document.getElementById("compare-mini-2").src = comparePick2.thumbUrl;
+
+        renderDiffColumn(document.getElementById("compare-diff-1"), left);
+        renderDiffColumn(document.getElementById("compare-diff-2"), right);
+
+        document.getElementById("compare-overlay").style.display = "block";
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeCompareModal() {
+        document.getElementById("compare-overlay").style.display = "none";
+        const cz = document.getElementById("compare-zoom");
+        cz.style.display = "none";
+        document.getElementById("compare-zoom-1").src = "";
+        document.getElementById("compare-zoom-2").src = "";
+        document.body.style.overflow = "";
       }
 
       function onKeyDown(e) {
