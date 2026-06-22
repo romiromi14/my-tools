@@ -386,11 +386,37 @@
 
       // ===== 解析 =====
       function parse() {
-        const text = clean(document.getElementById("raw").value);
-        if (!text.trim()) {
+        const raw = document.getElementById("raw").value.trim();
+        if (!raw) {
           alert("テキストを貼ってね");
           return;
         }
+
+        // --- JSON形式ならそのまま読む（Gemmaの出力用）---
+        // ```json ``` で囲まれてても、最初の { から最後の } を抜き出して読む
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            const obj = JSON.parse(jsonMatch[0]);
+            if (obj.items || obj.store || obj.total !== undefined) {
+              renderParsed({
+                store: obj.store || "",
+                date: obj.date || new Date().toISOString().slice(0, 10),
+                total: obj.total != null ? obj.total : null,
+                items: (obj.items || []).map((it) => ({
+                  name: it.name || "",
+                  price: it.price != null ? it.price : null,
+                })),
+              });
+              return; // JSONで処理できたら従来の解析はスキップ
+            }
+          } catch (e) {
+            /* JSONが壊れてたら従来解析に進む */
+          }
+        }
+        // --- ここから下は従来のテキスト解析 ---
+
+        const text = clean(raw);
         const lines = text
           .split(/\r?\n/)
           .map((s) => s.trim())
@@ -513,7 +539,10 @@
         d.items.forEach((it, idx) => {
           const guess = it.cat !== undefined ? it.cat : dict[it.name] || "";
           h += `<div class="item">
-           <div class="nm">${esc(it.name)} <span class="x" onclick="rmItem(${idx})">✕</span></div>
+           <div class="row" style="margin-bottom:6px">
+            <input id="it-name-${idx}" value="${esc(it.name)}" placeholder="商品名" style="flex:1;font-weight:bold">
+            <span class="x fix" onclick="rmItem(${idx})">✕</span>
+           </div>
            <div class="row">
             <input type="number" id="it-price-${idx}" value="${it.price ?? ""}" placeholder="金額" style="flex:0 0 90px">
             ${catSelect("it-cat-" + idx, guess)}
@@ -561,6 +590,8 @@
         cur.items.forEach((it, idx) => {
           const p = document.getElementById("it-price-" + idx);
           if (p) it.price = p.value ? parseInt(p.value, 10) : null;
+          const nm = document.getElementById("it-name-" + idx);
+          if (nm) it.name = nm.value.trim(); // ← 編集した商品名を退避
           const c = document.getElementById("it-cat-" + idx);
           if (c) it.cat = c.value; // ← カテゴリも退避
         });
@@ -582,7 +613,8 @@
           recs = LS.recs;
         let added = 0;
         cur.items.forEach((it, idx) => {
-          const realName = it.name;
+          const nmEl = document.getElementById("it-name-" + idx);
+          const realName = nmEl ? nmEl.value.trim() : it.name;
           const sel = document.getElementById("it-cat-" + idx);
           const cat = sel ? sel.value : it.cat || "";
           const price = it.price;
