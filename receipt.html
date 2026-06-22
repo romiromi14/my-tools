@@ -96,6 +96,24 @@
         font-size: 15px;
         background: #fff;
       }
+      /* ▼▼ 追加：日付input(type=date)のはみ出し対策 ▼▼ */
+      input[type="date"] {
+        /* iOSで中央寄せになるのを左寄せに戻す */
+        text-align: left;
+        /* iOS Safariがdate入力に勝手に付ける余白をリセット */
+        -webkit-appearance: none;
+        appearance: none;
+        /* 中身が枠を超えないように、幅計算にpaddingを含める（保険）*/
+        box-sizing: border-box;
+        /* 右側に少し余裕を持たせて、文字がフチに当たらないように */
+        padding-right: 10px;
+      }
+      /* iOSのdate入力内部の余白を消す（これが効くケースが多い）*/
+      input[type="date"]::-webkit-date-and-time-value {
+        text-align: left;
+        margin: 0;
+      }
+      /* ▲▲ 追加ここまで ▲▲ */
       label {
         font-size: 12px;
         color: var(--sub);
