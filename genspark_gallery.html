@@ -1259,6 +1259,27 @@
       .compare-legend .leg-del {
         color: #fca5a5;
       }
+      #btn-compare-img {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all var(--transition);
+      }
+      #btn-compare-img:hover {
+        border-color: var(--accent);
+        color: var(--text-primary);
+      }
+      #btn-compare-img.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
       #btn-compare-close {
         background: rgba(0, 0, 0, 0.5);
         border: none;
@@ -1344,34 +1365,6 @@
       }
       .diff-line.empty {
         opacity: 0.25;
-      }
-      /* 右側の連結ミニサムネ */
-      #compare-mini {
-        position: absolute;
-        top: 50%;
-        right: 16px;
-        transform: translateY(-50%);
-        z-index: 1105;
-        display: flex;
-        gap: 4px;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 6px;
-        border-radius: 8px;
-        border: 1px solid var(--border);
-        cursor: zoom-in;
-        transition: transform var(--transition);
-      }
-      #compare-mini:hover {
-        transform: translateY(-50%) scale(1.05);
-      }
-      #compare-mini img {
-        width: auto;
-        max-width: 110px;
-        height: auto;
-        object-fit: contain;
-        border-radius: 4px;
-        user-select: none;
-        -webkit-user-drag: none;
       }
 
       /* 連結拡大ビュー */
@@ -1533,6 +1526,7 @@
             <span class="leg-add">■ 2のみ</span>
             <span>■ 共通</span>
           </div>
+          <button id="btn-compare-img">🖼️ 画像</button>
           <button id="btn-compare-close" aria-label="閉じる">✕</button>
         </div>
         <div class="compare-columns">
@@ -1556,10 +1550,6 @@
             <img id="compare-zoom-2" src="" alt="" />
           </div>
         </div>
-      </div>
-      <div id="compare-mini">
-        <img id="compare-mini-1" src="" alt="" />
-        <img id="compare-mini-2" src="" alt="" />
       </div>
     </div>
 
@@ -1776,17 +1766,29 @@
           }
         });
 
-        // 連結ミニサムネをクリックで拡大
-        const compareMini = document.getElementById("compare-mini");
+        // 「画像」ボタンで連結画像をトグル表示
+        const btnCompareImg = document.getElementById("btn-compare-img");
         const compareZoom = document.getElementById("compare-zoom");
 
-        compareMini.addEventListener("click", () => {
-          document.getElementById("compare-zoom-1").src = comparePick1.imgUrl;
-          document.getElementById("compare-zoom-2").src = comparePick2.imgUrl;
-          compareZoom.style.display = "flex";
+        btnCompareImg.addEventListener("click", () => {
+          const showing = compareZoom.style.display === "flex";
+          if (showing) {
+            // 表示中 → 隠す
+            compareZoom.style.display = "none";
+            btnCompareImg.classList.remove("active");
+          } else {
+            // 非表示 → 出す
+            document.getElementById("compare-zoom-1").src = comparePick1.imgUrl;
+            document.getElementById("compare-zoom-2").src = comparePick2.imgUrl;
+            compareZoom.style.display = "flex";
+            btnCompareImg.classList.add("active");
+          }
         });
+
+        // 拡大画像自体をクリックでも閉じられる（従来どおり）
         compareZoom.addEventListener("click", () => {
           compareZoom.style.display = "none";
+          btnCompareImg.classList.remove("active");
           document.getElementById("compare-zoom-1").src = "";
           document.getElementById("compare-zoom-2").src = "";
         });
@@ -2870,9 +2872,6 @@
         document.querySelector("#compare-head-2 span:last-child").textContent =
           comparePick2.filename;
 
-        document.getElementById("compare-mini-1").src = comparePick1.thumbUrl;
-        document.getElementById("compare-mini-2").src = comparePick2.thumbUrl;
-
         renderDiffColumn(document.getElementById("compare-diff-1"), left);
         renderDiffColumn(document.getElementById("compare-diff-2"), right);
 
@@ -2886,6 +2885,7 @@
         cz.style.display = "none";
         document.getElementById("compare-zoom-1").src = "";
         document.getElementById("compare-zoom-2").src = "";
+        document.getElementById("btn-compare-img").classList.remove("active");
         document.body.style.overflow = "";
       }
 
