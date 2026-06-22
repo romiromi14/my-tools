@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ウマ娘ニュース整形ツール</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 0 16px;
+        background: #fafafa;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: monospace;
+        font-size: 13px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+      button {
+        margin: 10px 4px;
+        padding: 8px 16px;
+        font-size: 14px;
+        border: none;
+        border-radius: 6px;
+        background: #e85298;
+        color: #fff;
+        cursor: pointer;
+      }
+      button.copy {
+        background: #4a90d9;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 10px;
+        background: #fff;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 6px 8px;
+        font-size: 13px;
+        text-align: left;
+      }
+      th {
+        background: #f0f0f0;
+      }
+      .msg {
+        color: #2a8a2a;
+        font-size: 13px;
+        height: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ウマ娘ニュース → スプレッドシート整形ツール</h1>
+
+    <!-- ① ニューステキストを貼る場所 -->
+    <p>
+      ニュース本文を丸ごと貼り付けてね↓（貼り付けると自動で整形＆コピーされるよ）
+    </p>
+    <textarea
+      id="input"
+      rows="10"
+      placeholder="ここにニュース全文を貼り付け"
+    ></textarea>
+
+    <!-- ② 操作ボタン -->
+    <div>
+      <button onclick="parse()">整形する</button>
+      <button class="copy" onclick="copyTSV()">タブ区切りでコピー</button>
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <!-- ③ 整形結果のプレビュー表 -->
+    <table id="preview">
+      <thead>
+        <tr>
+          <th>年</th>
+          <th>期間</th>
+          <th>ピース</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <script>
+      // 整形結果を保持しておく変数（コピー時に使う）
+      let resultRows = [];
+
+      function parse() {
+        const text = document.getElementById("input").value;
+
+        // --- 1. 開催期間の抽出 ---
+        // 「6/10 12:00 ～ 6/13 4:59」のような行を全部拾う。
+        // 全角チルダ(～)・半角チルダ(~)・波ダッシュ(〜)のどれにも対応。
+        const periodRegex =
+          /(\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})\s*[～~〜]\s*(\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})/g;
+        const periods = [];
+        let m;
+        while ((m = periodRegex.exec(text)) !== null) {
+          periods.push(`${m[1]} ～ ${m[2]}`);
+        }
+
+        // --- 2. ピース（[衣装名]ウマ娘名）の抽出 ---
+        // 「のピース」に依存せず、報酬リストの行構造で拾う方式。
+        // 行頭の「・」のあとに「[衣装名]名前」が続く行を対象にする。
+        // 末尾に「のピース」が付いていれば取り除く。
+        const pieceRegex = /[・･]\s*(\[[^\]]+\][^\n]+)/g;
+        const pieces = [];
+        let p;
+        while ((p = pieceRegex.exec(text)) !== null) {
+          let name = p[1].trim();
+          name = name.replace(/のピース$/, ""); // 末尾の「のピース」だけ除去
+          pieces.push(name);
+        }
+
+        // --- 3. 年の抽出 ---
+        // 「2026.06.10」のような表記の先頭から年を取る。なければ今年。
+        const yearMatch = text.match(/(\d{4})[.\/年]/);
+        const year = yearMatch
+          ? yearMatch[1]
+          : new Date().getFullYear().toString();
+
+        // --- 4. 期間とピースを上から順番にペアにする ---
+        const rowCount = Math.max(periods.length, pieces.length);
+        resultRows = [];
+        for (let i = 0; i < rowCount; i++) {
+          resultRows.push([year, periods[i] || "", pieces[i] || ""]);
+        }
+
+        // --- 5. プレビュー表に反映 ---
+        const tbody = document.getElementById("tbody");
+        tbody.innerHTML = "";
+        resultRows.forEach((row) => {
+          const tr = document.createElement("tr");
+          row.forEach((cell) => {
+            const td = document.createElement("td");
+            td.textContent = cell;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById("msg").textContent =
+          `${resultRows.length}行を整形したよ！`;
+
+        // 整形できたら自動でクリップボードにもコピーする
+        if (resultRows.length > 0) {
+          copyTSV();
+        }
+      }
+
+      function copyTSV() {
+        if (resultRows.length === 0) {
+          document.getElementById("msg").textContent =
+            "先に「整形する」を押してね";
+          return;
+        }
+        // 各セルをタブ区切り、各行を改行でつなぐ → スプシにそのまま貼れるTSV形式
+        const tsv = resultRows.map((row) => row.join("\t")).join("\n");
+        navigator.clipboard
+          .writeText(tsv)
+          .then(() => {
+            document.getElementById("msg").textContent =
+              "整形＆コピー完了！スプレッドシートのセルを選んで貼り付けてね";
+          })
+          .catch(() => {
+            // file://環境などでコピーがブロックされた場合のフォロー
+            document.getElementById("msg").textContent =
+              "整形したよ！自動コピーが効かない環境みたい。「タブ区切りでコピー」を押してね";
+          });
+      }
+
+      // テキストエリアに貼り付けたら自動で整形＆コピーを実行。
+      // paste直後はまだ値が入りきっていないので、setTimeoutで少し待ってから実行する。
+      document.getElementById("input").addEventListener("paste", () => {
+        setTimeout(parse, 0);
+      });
+    </script>
+  </body>
+</html>
