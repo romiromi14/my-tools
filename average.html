@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ポイント記録ツール</title>
+    <style>
+      /* ===== 全体の見た目 ===== */
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 0 12px;
+        background: #f7f7fa;
+        color: #333;
+      }
+      h1 {
+        font-size: 20px;
+      }
+
+      /* ===== 入力エリア ===== */
+      .input-area {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      #pointInput {
+        flex: 1;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+      }
+      button {
+        padding: 10px 16px;
+        font-size: 15px;
+        border: none;
+        border-radius: 8px;
+        background: #ff69b4;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+
+      /* ===== 統計表示 ===== */
+      .stats {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .stat-box {
+        flex: 1;
+        background: #fff;
+        border-radius: 12px;
+        padding: 12px;
+        text-align: center;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+      .stat-box .label {
+        font-size: 13px;
+        color: #888;
+      }
+      .stat-box .value {
+        font-size: 24px;
+        font-weight: bold;
+        margin-top: 4px;
+      }
+
+      /* ===== 履歴テーブル ===== */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: center;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+      }
+      th {
+        background: #ffe4f0;
+      }
+      .del-btn {
+        background: #ddd;
+        color: #555;
+        padding: 4px 10px;
+        font-size: 12px;
+      }
+      .clear-all {
+        background: #bbb;
+        margin-top: 12px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎮 ポイント記録ツール</h1>
+
+    <!-- ===== 数値入力エリア ===== -->
+    <div class="input-area">
+      <input
+        type="number"
+        id="pointInput"
+        placeholder="ポイントを入力"
+        inputmode="decimal"
+      />
+      <button onclick="addData()">記録</button>
+    </div>
+
+    <!-- ===== 平均値・中央値の表示 ===== -->
+    <div class="stats">
+      <div class="stat-box">
+        <div class="label">平均値</div>
+        <div class="value" id="meanValue">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">中央値</div>
+        <div class="value" id="medianValue">-</div>
+      </div>
+    </div>
+
+    <!-- ===== 入力済みデータの履歴 ===== -->
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>ポイント</th>
+          <th>記録日時</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="historyBody"></tbody>
+    </table>
+
+    <button class="clear-all" onclick="clearAll()">全データ削除</button>
+
+    <script>
+      // ===== データの保存キー（localStorage用） =====
+      const STORAGE_KEY = "pointRecords";
+
+      // ===== データ読み込み（無ければ空配列） =====
+      // 各要素は { value: 数値, time: 記録日時の文字列 } という形
+      let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+      // ===== データを保存する関数 =====
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      }
+
+      // ===== 日時を「2026/07/06 14:30:05」形式の文字列にする =====
+      function formatDate(d) {
+        const p = (n) => String(n).padStart(2, "0"); // 2桁ゼロ埋め
+        return (
+          `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ` +
+          `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+        );
+      }
+
+      // ===== データ追加（「記録」ボタンで呼ばれる） =====
+      function addData() {
+        const input = document.getElementById("pointInput");
+        const val = parseFloat(input.value);
+
+        // 数値じゃなかったら弾く
+        if (isNaN(val)) {
+          alert("数値を入力してね！");
+          return;
+        }
+
+        // 現在の日時を自動で記録
+        const now = new Date();
+        records.push({ value: val, time: formatDate(now) });
+
+        save(); // 保存
+        input.value = ""; // 入力欄クリア
+        render(); // 画面更新
+        input.focus(); // 続けて入力しやすいようにフォーカス戻す
+      }
+
+      // ===== 平均値を計算 =====
+      function calcMean(arr) {
+        if (arr.length === 0) return null;
+        const sum = arr.reduce((a, b) => a + b, 0);
+        return sum / arr.length;
+      }
+
+      // ===== 中央値を計算 =====
+      function calcMedian(arr) {
+        if (arr.length === 0) return null;
+        // 昇順にソート（元の配列を壊さないようコピーしてから）
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        // 個数が奇数なら真ん中、偶数なら真ん中2つの平均
+        return sorted.length % 2 !== 0
+          ? sorted[mid]
+          : (sorted[mid - 1] + sorted[mid]) / 2;
+      }
+
+      // ===== 見やすく数値を整える（小数が長い時だけ丸める） =====
+      function fmt(n) {
+        if (n === null) return "-";
+        // 整数ならそのまま、小数なら小数第2位まで
+        return Number.isInteger(n) ? n : Math.round(n * 100) / 100;
+      }
+
+      // ===== 1件削除 =====
+      function deleteData(index) {
+        records.splice(index, 1);
+        save();
+        render();
+      }
+
+      // ===== 全削除 =====
+      function clearAll() {
+        if (records.length === 0) return;
+        if (confirm("全部のデータを削除する？")) {
+          records = [];
+          save();
+          render();
+        }
+      }
+
+      // ===== 画面を描き直す =====
+      function render() {
+        // --- 統計を更新 ---
+        const values = records.map((r) => r.value);
+        document.getElementById("meanValue").textContent = fmt(
+          calcMean(values),
+        );
+        document.getElementById("medianValue").textContent = fmt(
+          calcMedian(values),
+        );
+
+        // --- 履歴テーブルを作り直す ---
+        const body = document.getElementById("historyBody");
+        body.innerHTML = "";
+        // 新しいものが上に来るように逆順で表示
+        records
+          .slice()
+          .reverse()
+          .forEach((r, i) => {
+            // 逆順表示なので、元の配列でのインデックスを計算
+            const realIndex = records.length - 1 - i;
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+        <td>${realIndex + 1}</td>
+        <td>${r.value}</td>
+        <td>${r.time}</td>
+        <td><button class="del-btn" onclick="deleteData(${realIndex})">削除</button></td>
+      `;
+            body.appendChild(tr);
+          });
+      }
+
+      // ===== Enterキーでも記録できるように =====
+      document.getElementById("pointInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addData();
+      });
+
+      // ===== 起動時に一度描画 =====
+      render();
+    </script>
+  </body>
+</html>
