@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- スマホでピンチズームさせず、画面幅にフィットさせる設定 -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>ソリティア</title>
+    <style>
+      /* ===== 全体のベース設定 ===== */
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent; /* タップ時の青いハイライトを消す */
+        user-select: none; /* 長押しで文字選択されるのを防止 */
+      }
+      body {
+        margin: 0;
+        background: #0a6b3f; /* トランプ台の緑 */
+        font-family: sans-serif;
+        color: #fff;
+        overflow-x: hidden;
+      }
+
+      /* ===== 上部のバー（スコア・リセットボタン） ===== */
+      #topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        font-size: 14px;
+      }
+      #newgame {
+        background: #fff;
+        color: #0a6b3f;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-weight: bold;
+        font-size: 14px;
+      }
+
+      /* ===== カードの共通サイズ =====
+     画面幅を7列で割ってカードサイズを自動計算する（CSS変数を使用） */
+      :root {
+        /* 画面幅から左右の余白とカード間の隙間を引いて7等分 */
+        --card-w: calc((100vw - 16px - 6 * 3px) / 7);
+        --card-h: calc(var(--card-w) * 1.4); /* 縦横比 1:1.4 */
+      }
+
+      /* ===== 上段エリア（山札・捨て札・組札） ===== */
+      #upper {
+        display: flex;
+        padding: 0 8px;
+        gap: 3px;
+        margin-bottom: 6px;
+      }
+      #stock-waste {
+        display: flex;
+        gap: 3px;
+      }
+      #foundations {
+        display: flex;
+        gap: 3px;
+        margin-left: auto; /* 組札を右寄せ */
+      }
+
+      /* ===== 下段エリア（7列の場札） ===== */
+      #tableau {
+        display: flex;
+        padding: 0 8px;
+        gap: 3px;
+      }
+      .column {
+        width: var(--card-w);
+        min-height: var(--card-h);
+        position: relative; /* 中のカードを重ねて配置するため */
+      }
+
+      /* ===== カード1枚の見た目 ===== */
+      .card {
+        width: var(--card-w);
+        height: var(--card-h);
+        border-radius: calc(var(--card-w) * 0.1);
+        background: #fff;
+        color: #000;
+        position: absolute; /* 列の中で縦にずらして重ねる */
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 3px;
+        font-weight: bold;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        /* フォントサイズもカード幅に連動させて可変に */
+        font-size: calc(var(--card-w) * 0.32);
+        line-height: 1;
+      }
+      /* 山札・組札などに置く「空スロット」の枠 */
+      .slot {
+        width: var(--card-w);
+        height: var(--card-h);
+        border-radius: calc(var(--card-w) * 0.1);
+        border: 2px dashed rgba(255, 255, 255, 0.4);
+        position: relative;
+      }
+      .card.red {
+        color: #d00;
+      } /* ハート・ダイヤ */
+      .card.black {
+        color: #000;
+      } /* スペード・クラブ */
+
+      /* 裏向きのカード */
+      .card.back {
+        background: #2a4d8f;
+        background-image: repeating-linear-gradient(
+          45deg,
+          #2a4d8f 0,
+          #2a4d8f 4px,
+          #3960a8 4px,
+          #3960a8 8px
+        );
+      }
+
+      /* 選択中のカードを光らせる */
+      .card.selected {
+        outline: 3px solid #ffd400;
+        outline-offset: -1px;
+      }
+
+      /* カード下部のマーク（上部と逆さ表示） */
+      .card .bottom {
+        align-self: flex-end;
+        transform: rotate(180deg);
+      }
+
+      /* ===== クリア時のメッセージ ===== */
+      #win {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        font-size: 24px;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="topbar">
+      <div id="status">タップでカードを動かそう</div>
+      <button id="newgame">新しいゲーム</button>
+    </div>
+
+    <!-- 上段：山札／捨て札／（空き）／組札4つ -->
+    <div id="upper">
+      <div id="stock-waste">
+        <div id="stock" class="slot"></div>
+        <!-- 山札 -->
+        <div id="waste" class="slot"></div>
+        <!-- めくった札 -->
+      </div>
+      <div id="foundations">
+        <div class="slot foundation" data-f="0"></div>
+        <div class="slot foundation" data-f="1"></div>
+        <div class="slot foundation" data-f="2"></div>
+        <div class="slot foundation" data-f="3"></div>
+      </div>
+    </div>
+
+    <!-- 下段：7列の場札 -->
+    <div id="tableau"></div>
+
+    <div id="win"><div>クリア！🎉</div></div>
+
+    <script>
+      /* ============================================================
+   ソリティア（クロンダイク）本体ロジック
+   ============================================================ */
+
+      // スート（マーク）と色の定義
+      const SUITS = ["♠", "♥", "♦", "♣"];
+      const RED = ["♥", "♦"]; // 赤いスート
+      const RANKS = [
+        "A",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "J",
+        "Q",
+        "K",
+      ];
+
+      // ゲームの状態を保持するオブジェクト
+      let state = {
+        stock: [], // 山札（裏向き）
+        waste: [], // めくった札
+        foundations: [[], [], [], []], // 組札4つ（A→Kを揃える場所）
+        tableau: [[], [], [], [], [], [], []], // 場札7列
+      };
+
+      // 今選択中のカード情報（どこから動かそうとしているか）
+      let selected = null; // 例: {from:'tableau', col:3, index:5}
+
+      /* ---- カード1枚を表すオブジェクトを作る ---- */
+      function makeCard(suit, rankIndex) {
+        return {
+          suit,
+          rankIndex, // 0=A, 12=K
+          rank: RANKS[rankIndex],
+          red: RED.includes(suit), // 赤いカードかどうか
+          faceUp: false, // 表向きかどうか
+        };
+      }
+
+      /* ---- 52枚のデッキを作ってシャッフル ---- */
+      function newDeck() {
+        const deck = [];
+        for (const suit of SUITS) {
+          for (let r = 0; r < 13; r++) {
+            deck.push(makeCard(suit, r));
+          }
+        }
+        // フィッシャー・イェーツ法でシャッフル
+        for (let i = deck.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+      }
+
+      /* ---- ゲーム開始時の配置（ディール） ---- */
+      function deal() {
+        const deck = newDeck();
+        state = {
+          stock: [],
+          waste: [],
+          foundations: [[], [], [], []],
+          tableau: [[], [], [], [], [], [], []],
+        };
+        // 場札：1列目に1枚、2列目に2枚…7列目に7枚。各列の一番上だけ表向き
+        for (let col = 0; col < 7; col++) {
+          for (let n = 0; n <= col; n++) {
+            const card = deck.pop();
+            card.faceUp = n === col; // 一番上のカードだけ表向き
+            state.tableau[col].push(card);
+          }
+        }
+        // 残りは全部山札へ（裏向きのまま）
+        state.stock = deck;
+        selected = null;
+        render();
+      }
+
+      /* ---- カードのDOM要素を作る ---- */
+      function cardEl(card) {
+        const el = document.createElement("div");
+        el.className = "card";
+        if (card.faceUp) {
+          // 表向き：数字とマークを上下に表示
+          el.classList.add(card.red ? "red" : "black");
+          el.innerHTML =
+            `<div class="top">${card.rank}${card.suit}</div>` +
+            `<div class="bottom">${card.rank}${card.suit}</div>`;
+        } else {
+          // 裏向き
+          el.classList.add("back");
+        }
+        return el;
+      }
+
+      /* ---- 画面全体を描き直す ---- */
+      function render() {
+        // --- 山札 ---
+        const stockEl = document.getElementById("stock");
+        stockEl.innerHTML = "";
+        if (state.stock.length > 0) {
+          const back = document.createElement("div");
+          back.className = "card back";
+          stockEl.appendChild(back);
+        }
+        // 山札タップ：1枚めくる（空なら捨て札を山札に戻す）
+        stockEl.onclick = drawFromStock;
+
+        // --- 捨て札（めくった札）---
+        const wasteEl = document.getElementById("waste");
+        wasteEl.innerHTML = "";
+        if (state.waste.length > 0) {
+          const top = state.waste[state.waste.length - 1];
+          const el = cardEl(top);
+          // 選択中ならハイライト
+          if (selected && selected.from === "waste")
+            el.classList.add("selected");
+          el.onclick = () => selectWaste();
+          wasteEl.appendChild(el);
+        }
+
+        // --- 組札4つ ---
+        document.querySelectorAll(".foundation").forEach((fEl) => {
+          const idx = Number(fEl.dataset.f);
+          fEl.innerHTML = "";
+          const pile = state.foundations[idx];
+          if (pile.length > 0) {
+            fEl.appendChild(cardEl(pile[pile.length - 1]));
+          }
+          // 組札タップ：選択中のカードをここに置けるか試す
+          fEl.onclick = () => tryMoveToFoundation(idx);
+        });
+
+        // --- 場札7列 ---
+        const tab = document.getElementById("tableau");
+        tab.innerHTML = "";
+        state.tableau.forEach((col, colIndex) => {
+          const colEl = document.createElement("div");
+          colEl.className = "column";
+          // カードを縦に少しずつずらして重ねる（表と裏でずらし幅を変える）
+          let offset = 0;
+          col.forEach((card, i) => {
+            const el = cardEl(card);
+            el.style.top = offset + "px";
+            // 選択中の列＆その位置以降ならハイライト
+            if (
+              selected &&
+              selected.from === "tableau" &&
+              selected.col === colIndex &&
+              i >= selected.index
+            ) {
+              el.classList.add("selected");
+            }
+            // タップ時の処理（表向きのカードだけ選べる）
+            el.onclick = (e) => {
+              e.stopPropagation();
+              onTableauCardClick(colIndex, i);
+            };
+            colEl.appendChild(el);
+            // 次のカードのずらし量：裏向きは狭く、表向きは広く
+            offset += card.faceUp ? getStep(true) : getStep(false);
+          });
+          // 空の列をタップした時（Kを置く用）
+          colEl.onclick = () => tryMoveToEmptyColumn(colIndex);
+          tab.appendChild(colEl);
+        });
+
+        // クリア判定
+        checkWin();
+      }
+
+      /* ---- カードを縦に重ねるときのずらし幅（px）---- */
+      function getStep(faceUp) {
+        // カード高さを取得して、表向きは28%・裏向きは12%ずらす
+        const cardH =
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              "--card-h",
+            ),
+          ) || 60;
+        // CSS変数がcalcだと数値取得できないので、実測で代用
+        const sample = document.querySelector(".card, .slot");
+        const h = sample ? sample.offsetHeight : 70;
+        return faceUp ? h * 0.28 : h * 0.12;
+      }
+
+      /* ============================================================
+   操作ロジック（タップで選ぶ→タップで置く）
+   ============================================================ */
+
+      /* 山札をタップ：1枚めくる */
+      function drawFromStock() {
+        selected = null;
+        if (state.stock.length > 0) {
+          const card = state.stock.pop();
+          card.faceUp = true;
+          state.waste.push(card);
+        } else {
+          // 山札が空なら、捨て札を全部裏向きに戻して山札に
+          state.stock = state.waste
+            .reverse()
+            .map((c) => ((c.faceUp = false), c));
+          state.waste = [];
+        }
+        render();
+      }
+
+      /* 捨て札のトップを選択 */
+      function selectWaste() {
+        if (state.waste.length === 0) return;
+        // すでに選択中なら解除
+        if (selected && selected.from === "waste") {
+          selected = null;
+        } else {
+          selected = { from: "waste" };
+        }
+        render();
+      }
+
+      /* 場札のカードをタップした時 */
+      function onTableauCardClick(col, index) {
+        const pile = state.tableau[col];
+        const card = pile[index];
+
+        // 裏向きカードで、かつ一番上なら → めくる
+        if (!card.faceUp) {
+          if (index === pile.length - 1) {
+            card.faceUp = true;
+            selected = null;
+            render();
+          }
+          return;
+        }
+
+        // すでに何か選択中なら、この列への移動を試みる
+        if (selected) {
+          // 同じカードを再タップ → 選択解除
+          if (
+            selected.from === "tableau" &&
+            selected.col === col &&
+            selected.index === index
+          ) {
+            selected = null;
+            render();
+            return;
+          }
+          tryMoveToTableau(col);
+          return;
+        }
+
+        // 何も選択してなければ、このカード（以降）を選択
+        selected = { from: "tableau", col, index };
+        render();
+      }
+
+      /* ---- 選択中のカード配列を取り出すヘルパー ---- */
+      function getSelectedCards() {
+        if (!selected) return null;
+        if (selected.from === "waste") {
+          return [state.waste[state.waste.length - 1]];
+        }
+        if (selected.from === "tableau") {
+          return state.tableau[selected.col].slice(selected.index);
+        }
+        return null;
+      }
+
+      /* ---- 選択中のカードを元の場所から取り除く ---- */
+      function removeSelectedCards() {
+        if (selected.from === "waste") {
+          state.waste.pop();
+        } else if (selected.from === "tableau") {
+          const col = state.tableau[selected.col];
+          col.splice(selected.index); // index以降を全部取り除く
+          // 取り除いた後、下のカードが裏向きなら表にする
+          if (col.length > 0 && !col[col.length - 1].faceUp) {
+            col[col.length - 1].faceUp = true;
+          }
+        }
+      }
+
+      /* 組札への移動を試みる（1枚だけ・A→Kの昇順・同じスート）*/
+      function tryMoveToFoundation(fIdx) {
+        const cards = getSelectedCards();
+        if (!cards || cards.length !== 1) return; // 組札は1枚ずつ
+        const card = cards[0];
+        const pile = state.foundations[fIdx];
+
+        let ok = false;
+        if (pile.length === 0) {
+          ok = card.rankIndex === 0; // 空ならAだけ置ける
+        } else {
+          const top = pile[pile.length - 1];
+          // 同じスートで1つ大きい数字ならOK
+          ok = top.suit === card.suit && card.rankIndex === top.rankIndex + 1;
+        }
+
+        if (ok) {
+          removeSelectedCards();
+          pile.push(card);
+          selected = null;
+        }
+        render();
+      }
+
+      /* 場札への移動を試みる（色違い・1つ小さい数字に重ねる）*/
+      function tryMoveToTableau(col) {
+        const cards = getSelectedCards();
+        if (!cards) return;
+        const moving = cards[0]; // 動かす束の一番上（一番大きい数字）
+        const dest = state.tableau[col];
+
+        let ok = false;
+        if (dest.length === 0) {
+          ok = false; // 空列は専用関数で処理（Kのみ）
+        } else {
+          const top = dest[dest.length - 1];
+          // 相手が表向き＆色違い＆1つ大きい数字ならOK
+          ok =
+            top.faceUp &&
+            top.red !== moving.red &&
+            moving.rankIndex === top.rankIndex - 1;
+        }
+
+        if (ok) {
+          removeSelectedCards();
+          dest.push(...cards);
+          selected = null;
+        }
+        render();
+      }
+
+      /* 空の列への移動（Kだけ置ける）*/
+      function tryMoveToEmptyColumn(col) {
+        if (!selected) return;
+        const dest = state.tableau[col];
+        if (dest.length !== 0) return; // 空列専用
+        const cards = getSelectedCards();
+        if (!cards) return;
+        // 束の先頭がKならOK
+        if (cards[0].rankIndex === 12) {
+          removeSelectedCards();
+          dest.push(...cards);
+          selected = null;
+        }
+        render();
+      }
+
+      /* ---- クリア判定：組札4つが全部Kまで揃ったら勝ち ---- */
+      function checkWin() {
+        const done = state.foundations.every((p) => p.length === 13);
+        document.getElementById("win").style.display = done ? "flex" : "none";
+      }
+
+      /* ---- 「新しいゲーム」ボタン ---- */
+      document.getElementById("newgame").onclick = deal;
+
+      // 最初のゲーム開始
+      deal();
+    </script>
+  </body>
+</html>
