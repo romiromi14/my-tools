@@ -116,6 +116,12 @@
 
     <!-- ===== 平均値・中央値の表示 ===== -->
     <div class="stats">
+      <!-- ▼ここを新規追加（合計値ボックス） -->
+      <div class="stat-box">
+        <div class="label">合計値</div>
+        <div class="value" id="sumValue">-</div>
+      </div>
+      <!-- ▲ここまで追加 -->
       <div class="stat-box">
         <div class="label">平均値</div>
         <div class="value" id="meanValue">-</div>
@@ -184,6 +190,13 @@
         input.focus(); // 続けて入力しやすいようにフォーカス戻す
       }
 
+      // ===== 合計値を計算（▼新規追加） =====
+      function calcSum(arr) {
+        if (arr.length === 0) return null;
+        return arr.reduce((a, b) => a + b, 0);
+      }
+      // ▲ここまで追加
+
       // ===== 平均値を計算 =====
       function calcMean(arr) {
         if (arr.length === 0) return null;
@@ -231,6 +244,7 @@
       function render() {
         // --- 統計を更新 ---
         const values = records.map((r) => r.value);
+        document.getElementById("sumValue").textContent = fmt(calcSum(values));
         document.getElementById("meanValue").textContent = fmt(
           calcMean(values),
         );
