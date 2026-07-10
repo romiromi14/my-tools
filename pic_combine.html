@@ -1097,6 +1097,14 @@
           </div>
           <div class="spacer"></div>
           <button
+            class="btn"
+            id="btn-merge-to-source"
+            style="min-height: 40px; padding: 0 16px; font-size: 12px"
+          >
+            <i class="fa-solid fa-recycle"></i> 連結結果を素材に追加
+          </button>
+
+          <button
             class="btn btn-success"
             id="btn-download"
             style="min-height: 40px; padding: 0 20px; font-size: 13px"
@@ -1194,6 +1202,7 @@
       const jpegSlider = document.getElementById("jpeg-quality");
       const jpegQualityVal = document.getElementById("jpeg-quality-val");
       const btnDownload = document.getElementById("btn-download");
+      const btnMergeToSource = document.getElementById("btn-merge-to-source");
       const btnClear = document.getElementById("btn-clear");
       const btnTight = document.getElementById("btn-tight");
       const rowLayoutPanel = document.getElementById("row-layout-panel");
@@ -1968,6 +1977,32 @@
           a.download = fileName;
           a.click();
         }
+      });
+
+      // ================================================================
+      //  連結結果を素材に追加（元素材は削除して、連結画像1枚に置き換え）
+      // ================================================================
+      btnMergeToSource.addEventListener("click", () => {
+        if (state.images.length === 0) return;
+
+        // 現在のcanvasの内容を新しい画像として取り込む
+        // PNGで一時出力（透過を保持したいわけではないが、劣化のないPNGを使う）
+        const dataUrl = canvas.toDataURL("image/png");
+        const img = new Image();
+        img.onload = () => {
+          // 元素材を全削除して、連結結果1枚だけを残す
+          state.images = [
+            {
+              id: Date.now() + Math.random(),
+              img,
+              name: `merged_${Date.now()}.png`,
+            },
+          ];
+          renderThumbs();
+          renderCanvas();
+          updateRowLayoutSummary();
+        };
+        img.src = dataUrl;
       });
 
       // ================================================================
