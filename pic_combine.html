@@ -2001,6 +2001,13 @@
           renderThumbs();
           renderCanvas();
           updateRowLayoutSummary();
+
+          // ★ 追加：一番上までスクロール
+          // スマホではサイドバー全体がbody扱い、PCではサイドバー内をスクロールする
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          document
+            .querySelector(".sidebar")
+            ?.scrollTo({ top: 0, behavior: "smooth" });
         };
         img.src = dataUrl;
       });
