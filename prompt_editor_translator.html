@@ -237,32 +237,36 @@
         });
       }
 
-      // 1行カードを生成。doTranslate=true なら作成後に翻訳
-      function addSegment(value = "", doTranslate = false) {
+      // カードのDOMを作って動作を付けるだけ（appendはしない）
+      function createSegment(value = "", doTranslate = false) {
         const box = document.getElementById("segments");
         const row = document.createElement("div");
         row.className = "row";
         row.innerHTML = `
-          <div class="num"></div>
-          <div class="body">
-            <textarea class="en" rows="1"></textarea>
-            <div class="ja"></div>
-          </div>
-          <div class="side">
-            <button class="mini">copy</button>
-            <button class="mini">訳</button>
-            <button class="mini del">×</button>
-          </div>`;
+         <div class="num"></div>
+         <div class="body">
+           <textarea class="en" rows="1"></textarea>
+           <div class="ja"></div>
+         </div>
+         <div class="side">
+           <button class="mini">copy</button>
+           <button class="mini">訳</button>
+           <button class="mini up">↑</button>
+           <button class="mini down">↓</button>
+           <button class="mini ins">＋</button>
+           <button class="mini del">×</button>
+         </div>`;
         const en = row.querySelector(".en");
         const ja = row.querySelector(".ja");
-        const [copyBtn, trBtn, delBtn] = row.querySelectorAll(".mini");
+        const [copyBtn, trBtn, upBtn, downBtn, insBtn, delBtn] =
+          row.querySelectorAll(".mini");
 
         en.value = value;
-        autoGrow(en);
         en.addEventListener("input", () => {
           autoGrow(en);
           rebuild();
         });
+
         copyBtn.onclick = () => copyText(copyBtn, en.value.trim());
         trBtn.onclick = async () => {
           ja.textContent = "翻訳中...";
@@ -272,16 +276,33 @@
             ja.textContent = "[翻訳失敗]";
           }
         };
+        upBtn.onclick = () => {
+          const prev = row.previousElementSibling;
+          if (prev) box.insertBefore(row, prev);
+          renumber();
+          rebuild();
+        };
+        downBtn.onclick = () => {
+          const next = row.nextElementSibling;
+          if (next) box.insertBefore(next, row);
+          renumber();
+          rebuild();
+        };
+        insBtn.onclick = () => {
+          const card = createSegment("", false);
+          box.insertBefore(card.row, row.nextElementSibling); // 自分の直後に挿入
+          renumber();
+          rebuild();
+          autoGrow(card.en);
+          card.en.focus();
+        };
         delBtn.onclick = () => {
           row.remove();
           renumber();
           rebuild();
         };
 
-        box.appendChild(row);
-        renumber();
-        rebuild();
-
+        // 翻訳が必要なら実行（挿入後にautoGrowするので、ここではまだ高さ調整しない）
         if (doTranslate && value.trim()) {
           (async () => {
             ja.textContent = "翻訳中...";
@@ -293,6 +314,17 @@
           })();
         }
         return { row, en, ja };
+      }
+
+      // 末尾に足す（「＋ 文を追加」ボタン用）
+      function addSegment(value = "", doTranslate = false) {
+        const box = document.getElementById("segments");
+        const card = createSegment(value, doTranslate);
+        box.appendChild(card.row);
+        renumber();
+        rebuild();
+        autoGrow(card.en);
+        return card;
       }
 
       function autoGrow(el) {
