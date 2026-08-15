@@ -106,14 +106,16 @@
       }
       .side {
         flex: 0 0 auto;
-        display: flex;
-        flex-direction: column;
+        display: grid; /* flex → grid に変更 */
+        grid-template-columns: auto auto; /* 2列 */
         gap: 6px;
       }
       .mini {
         padding: 4px 10px;
         font-size: 13px;
         margin: 0;
+        min-width: 44px;
+        text-align: center;
         background: #2f3640;
         border: 1px solid #4a5260;
         color: #b8c4d0;
@@ -250,16 +252,16 @@
          </div>
          <div class="side">
            <button class="mini">copy</button>
-           <button class="mini">訳</button>
            <button class="mini up">↑</button>
+           <button class="mini">訳</button>
            <button class="mini down">↓</button>
            <button class="mini ins">＋</button>
            <button class="mini del">×</button>
          </div>`;
         const en = row.querySelector(".en");
         const ja = row.querySelector(".ja");
-        const [copyBtn, trBtn, upBtn, downBtn, insBtn, delBtn] =
-          row.querySelectorAll(".mini");
+        const [copyBtn, upBtn, trBtn, downBtn, insBtn, delBtn] =
+          row.querySelectorAll(".mini"); // ← upBtn と trBtn の位置を入れ替えた
 
         en.value = value;
         en.addEventListener("input", () => {
