@@ -2633,6 +2633,16 @@
         renderGallery(); // 選択状態の見た目を反映
       }
 
+      // 比較の「1」「2」の選択を両方解除する
+      function clearComparePicks() {
+        if (!comparePick1 && !comparePick2) return; // 何も選ばれてなければ無視
+        comparePick1 = null;
+        comparePick2 = null;
+        updateCompareButton(); // 比較ボタンを非アクティブに戻す
+        renderGallery(); // カードの選択枠・①②ボタンの見た目をリセット
+        showToast("選択を解除したよ");
+      }
+
       function updateCompareButton() {
         const btn = document.getElementById("btn-compare");
         if (!btn) return;
@@ -2969,11 +2979,28 @@
       }
 
       function onKeyDown(e) {
+        // --- Escキーの特別処理（モーダルが開いてない時も動かしたい） ---
+        if (e.key === "Escape") {
+          // 比較モーダルが開いてたら、それを閉じる方を優先
+          if (
+            document.getElementById("compare-overlay").style.display === "block"
+          ) {
+            closeCompareModal();
+            return;
+          }
+          // 画像モーダルが開いてたら閉じる
+          if (modalOverlay.style.display === "block") {
+            closeModal();
+            return;
+          }
+          // どのモーダルも開いてなければ、1・2の選択を解除
+          clearComparePicks();
+          return;
+        }
+
+        // --- ここから下は画像モーダルが開いてる時だけ ---
         if (modalOverlay.style.display !== "block") return;
         switch (e.key) {
-          case "Escape":
-            closeModal();
-            break;
           case "ArrowLeft":
             e.preventDefault();
             navigateModal(-1);
