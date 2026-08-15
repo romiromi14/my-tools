@@ -1237,11 +1237,18 @@
       .compare-header {
         padding: 16px 20px;
         border-bottom: 1px solid var(--border);
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr; /* 左余白 | 中央 | 右余白 */
         align-items: center;
-        justify-content: space-between;
+        gap: 12px;
         flex-shrink: 0;
       }
+      .compare-header-center {
+        display: flex;
+        align-items: center;
+        gap: 30px; /* ← LEGENDと画像ボタンの間隔。狭くすればボタンが左に寄る */
+      }
+
       .compare-title {
         font-size: 15px;
         font-weight: 700;
@@ -1260,19 +1267,26 @@
         color: #fca5a5;
       }
       #btn-compare-img {
-        background: var(--bg-primary);
-        border: 1px solid var(--border);
-        color: var(--text-secondary);
-        padding: 6px 14px;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent);
+        color: #a5b4fc;
+        padding: 6px 16px;
         border-radius: 8px;
         font-size: 13px;
+        font-weight: 600;
         cursor: pointer;
         flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: auto; /* ← 追加 */
         transition: all var(--transition);
       }
       #btn-compare-img:hover {
+        background: var(--accent);
         border-color: var(--accent);
-        color: var(--text-primary);
+        color: #fff;
+        transform: translateY(-1px);
       }
       #btn-compare-img.active {
         background: var(--accent);
@@ -1294,6 +1308,7 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        justify-self: end;
       }
       #btn-compare-close:hover {
         background: var(--accent);
@@ -1521,12 +1536,14 @@
       <div id="compare-body">
         <div class="compare-header">
           <div class="compare-title">プロンプト比較</div>
-          <div class="compare-legend">
-            <span class="leg-del">■ 1のみ</span>
-            <span class="leg-add">■ 2のみ</span>
-            <span>■ 共通</span>
+          <div class="compare-header-center">
+            <div class="compare-legend">
+              <span class="leg-del">■ 1のみ</span>
+              <span class="leg-add">■ 2のみ</span>
+              <span>■ 共通</span>
+            </div>
+            <button id="btn-compare-img">🖼️ 画像</button>
           </div>
-          <button id="btn-compare-img">🖼️ 画像</button>
           <button id="btn-compare-close" aria-label="閉じる">✕</button>
         </div>
         <div class="compare-columns">
