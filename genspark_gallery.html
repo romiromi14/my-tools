@@ -1122,7 +1122,7 @@
       .card-compare-btns {
         position: absolute;
         top: 8px;
-        right: 8px;
+        left: 8px; /* ← 右上から左上へ移動 */
         display: flex;
         gap: 6px;
         z-index: 3;
@@ -1174,6 +1174,40 @@
         border-color: #34d399;
         color: #0d1117;
       }
+      /* === 削除ボタン（カード右上・ホバー時のみ） === */
+      .card-delete-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 3;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        line-height: 1;
+        opacity: 0; /* 普段は非表示 */
+        pointer-events: none;
+        transition: all var(--transition);
+      }
+      /* カードにマウスを乗せたときだけ表示 */
+      .gallery-card:hover .card-delete-btn {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .card-delete-btn:hover {
+        background: rgba(239, 68, 68, 0.85); /* ホバーで赤く */
+        border-color: #ef4444;
+        transform: scale(1.1);
+      }
+
       .gallery-card.selected-1 {
         outline: 3px solid #4facfe;
         outline-offset: -3px;
@@ -2184,9 +2218,10 @@
 
       async function reloadFolder(handle) {
         try {
-          let permission = await handle.queryPermission({ mode: "read" });
+          // ↓ mode を "readwrite" に変更（2箇所）
+          let permission = await handle.queryPermission({ mode: "readwrite" });
           if (permission !== "granted")
-            permission = await handle.requestPermission({ mode: "read" });
+            permission = await handle.requestPermission({ mode: "readwrite" });
           if (permission !== "granted") return;
           await loadFilesFromDirectories([handle], { append: true });
           await saveHandleToIDB(handle);
@@ -2197,7 +2232,7 @@
       async function openFolder() {
         try {
           const dirHandle = await window.showDirectoryPicker({
-            mode: "read",
+            mode: "readwrite", // ← "read" から変更
             startIn: "downloads",
           });
           await saveHandleToIDB(dirHandle);
@@ -2233,6 +2268,7 @@
             const items = await scanDirectory(dirHandle);
             items.forEach((it) => {
               it.sourceKey = dirHandle.name;
+              it.dirHandle = dirHandle; // ← 追加：削除時に removeEntry を呼ぶため
               it.key = `${dirHandle.name}::${it.key}`;
             });
             allItems.push(...items);
@@ -2337,6 +2373,7 @@
             items.push({
               key,
               filename: imgEntry.name,
+              promptFilename: promptEntry ? promptEntry.name : null, // ← 追加
               imgUrl,
               thumbUrl,
               promptText,
@@ -2379,6 +2416,7 @@
             items.push({
               key: imgEntry.name,
               filename: imgEntry.name,
+              promptFilename: promptEntry ? promptEntry.name : null, // ← 追加
               imgUrl,
               thumbUrl,
               promptText,
@@ -2579,6 +2617,7 @@
             <button class="btn-compare-pick btn-pick-1" title="1に選択">1</button>
             <button class="btn-compare-pick btn-pick-2" title="2に選択">2</button>
           </div>
+          <button class="card-delete-btn" title="このファイルを削除">🗑</button>
           <img src="${item.thumbUrl}" alt="${escapeHtml(item.filename)}" loading="lazy" decoding="async">
         </div>
         <div class="card-info">
@@ -2601,6 +2640,13 @@
         btn2.addEventListener("click", (e) => {
           e.stopPropagation();
           togglePick(2, item);
+        });
+
+        // 削除ボタン
+        const btnDelete = card.querySelector(".card-delete-btn");
+        btnDelete.addEventListener("click", (e) => {
+          e.stopPropagation(); // カードクリック（モーダル）を発火させない
+          deleteItem(item);
         });
 
         card.addEventListener("click", (e) => {
@@ -2631,6 +2677,77 @@
         }
         updateCompareButton();
         renderGallery(); // 選択状態の見た目を反映
+      }
+
+      // カードの画像＋プロンプトファイルを完全削除する
+      async function deleteItem(item) {
+        // 取り返しがつかないので確認
+        const ok = confirm(
+          `「${item.filename}」を削除します。\n` +
+            (item.promptFilename
+              ? `プロンプト（${item.promptFilename}）も一緒に削除されます。\n`
+              : "") +
+            `\nこの操作は取り消せません。よろしいですか？`,
+        );
+        if (!ok) return;
+
+        // ハンドルが無い（古い読み込み等）場合は削除不可
+        if (!item.dirHandle) {
+          showToast("⚠️ フォルダを開き直すと削除できます");
+          return;
+        }
+
+        try {
+          // 書き込み権限を確認（無ければ要求）
+          let perm = await item.dirHandle.queryPermission({
+            mode: "readwrite",
+          });
+          if (perm !== "granted") {
+            perm = await item.dirHandle.requestPermission({
+              mode: "readwrite",
+            });
+          }
+          if (perm !== "granted") {
+            showToast("⚠️ 書き込み権限がありません");
+            return;
+          }
+
+          // 画像ファイルを削除
+          await item.dirHandle.removeEntry(item.filename);
+
+          // プロンプトファイルがあれば一緒に削除
+          if (item.promptFilename) {
+            try {
+              await item.dirHandle.removeEntry(item.promptFilename);
+            } catch (e) {
+              // プロンプトだけ既に無い場合などは無視
+            }
+          }
+
+          // メモリ上のデータからも除去
+          // 選択中（1 or 2）だったら解除
+          if (comparePick1 && comparePick1.key === item.key)
+            comparePick1 = null;
+          if (comparePick2 && comparePick2.key === item.key)
+            comparePick2 = null;
+
+          // Blob URL を解放
+          URL.revokeObjectURL(item.imgUrl);
+          if (item.thumbUrl && item.thumbUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(item.thumbUrl);
+          }
+
+          // allItems から取り除く
+          allItems = allItems.filter((it) => it.key !== item.key);
+
+          updateStatusBar();
+          updateCompareButton();
+          applySortAndFilter(); // 再描画（filteredItems も更新される）
+
+          showToast(`🗑️ ${item.filename} を削除しました`);
+        } catch (err) {
+          showToast(`⚠️ 削除に失敗しました: ${err.message}`);
+        }
       }
 
       // 比較の「1」「2」の選択を両方解除する
