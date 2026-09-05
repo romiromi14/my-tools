@@ -165,7 +165,8 @@
       placeholder="自然言語型プロンプトを貼り付け（自動で分割・翻訳）"
     ></textarea>
     <div class="toolbar">
-      <button onclick="run()">分割して翻訳</button>
+      <button id="modeBtn" onclick="toggleMode()">モード：分割のみ</button>
+      <button onclick="run()">再実行</button>
       <button onclick="loadSample()">サンプル</button>
       <span id="status"></span>
     </div>
@@ -188,6 +189,20 @@
 
     <script>
       const SAMPLE = `Chest-up portrait shot, shot from a low angle, camera positioned low and tilted upward toward her face. A young Japanese woman in her bedroom, casual selfie-style photo. She is looking directly at the camera, with a relaxed natural posture, her face naturally angled toward the camera. She is standing, with both hands gently touching her cheeks, fingers softly pressed against her face in a cute innocent gesture. She has a pronounced shy bashful expression, with her mouth slightly open. She has large round expressive eyes with bright catchlights. Her hair is medium-length, slightly tousled dark hair with diagonally parted bangs, frames her rounded cheeks. She has a feminine silhouette with a large bust and soft curves, showing sweet vulnerability and endearing charm. She wears a soft baby pink stretchy thin fabric hoodie with cute white heart pattern. Soft natural daylight streams through a nearby window. The overall lighting feels soft, with light coming from the front. Natural candid snapshot, authentic feel, soft natural colors.`;
+
+      // モード管理："translate"（分割して和訳）か "split"（分割のみ）
+      let mode = "split";
+
+      function toggleMode() {
+        // 押すたびに2モードを行き来する
+        mode = mode === "translate" ? "split" : "translate";
+        document.getElementById("modeBtn").textContent =
+          mode === "translate" ? "モード：分割して和訳" : "モード：分割のみ";
+        document.getElementById("status").textContent =
+          mode === "translate"
+            ? "貼り付けで分割＋和訳します"
+            : "貼り付けで分割のみします";
+      }
 
       function loadSample() {
         document.getElementById("input").value = SAMPLE;
@@ -363,7 +378,19 @@
           return;
         }
 
+        // まずカードだけ全部作る（和訳はまだしない）
         const cards = sentences.map((s) => addSegment(s, false));
+
+        // ↓ カード生成直後に高さを測り直す（両モード共通でここが効く）
+        document.querySelectorAll("#segments .en").forEach(autoGrow);
+
+        // 「分割のみ」モードならここで終了
+        if (mode === "split") {
+          status.textContent = `分割完了（${cards.length}文）`;
+          return;
+        }
+
+        // 「分割して和訳」モードは順番に翻訳
         for (let i = 0; i < cards.length; i++) {
           status.textContent = `翻訳中 ${i + 1}/${cards.length}...`;
           cards[i].ja.textContent = "翻訳中...";
@@ -375,8 +402,6 @@
           await new Promise((r) => setTimeout(r, 50));
         }
         status.textContent = "完了";
-        // ↓ 追加：全カードの高さを測り直す
-        document.querySelectorAll("#segments .en").forEach(autoGrow);
       }
 
       async function retranslateAll() {
