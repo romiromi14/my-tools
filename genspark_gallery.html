@@ -146,6 +146,32 @@
         transform: translateY(-1px);
       }
 
+      /* ★ お気に入りフォルダ指定ボタン（ヘッダー） */
+      #btn-set-favorite-folder {
+        background: transparent;
+        color: var(--accent-from);
+        border: 1px solid rgba(0, 242, 254, 0.35);
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      #btn-set-favorite-folder:hover {
+        background: rgba(0, 242, 254, 0.08);
+        border-color: var(--accent-from);
+        transform: translateY(-1px);
+      }
+      /* 指定済みのときは金色でフォルダ名を表示 */
+      #btn-set-favorite-folder.set {
+        background: rgba(255, 213, 74, 0.12);
+        color: #ffd54a;
+        border-color: rgba(255, 213, 74, 0.5);
+      }
+
       #saved-folders {
         display: flex;
         gap: 6px;
@@ -1279,6 +1305,41 @@
         transform: scale(1.1);
       }
 
+      /* === ★お気に入りボタン（カード左下・ホバー時のみ） === */
+      .card-fav-btn {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        z-index: 3;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(0, 0, 0, 0.55);
+        color: #ffd54a;
+        font-size: 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        line-height: 1;
+        opacity: 0; /* 普段は非表示 */
+        pointer-events: none;
+        transition: all var(--transition);
+      }
+      /* カードにマウスを乗せたときだけ表示 */
+      .gallery-card:hover .card-fav-btn {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .card-fav-btn:hover {
+        background: rgba(255, 213, 74, 0.85); /* ホバーで金色に */
+        border-color: #ffd54a;
+        color: #0d1117;
+        transform: scale(1.1);
+      }
+
       .gallery-card.selected-1 {
         outline: 3px solid #4facfe;
         outline-offset: -3px;
@@ -1532,6 +1593,7 @@
           <span class="logo-text">AI Gallery & Universal Viewer</span>
         </div>
         <button id="btn-open-folder">📂 フォルダを追加</button>
+        <button id="btn-set-favorite-folder">⭐ お気に入りフォルダを指定</button>
         <div id="saved-folders"></div>
         <span id="status-bar"></span>
       </div>
@@ -1697,9 +1759,11 @@
       const GENERIC_IMG_PATTERN = /\.(png|jpe?g|webp|gif|avif)$/i;
 
       const IDB_NAME = "GensparkGalleryDB";
-      const IDB_VERSION = 2; // ★ 2 にバージョンアップ（サムネストア追加のため）
+      const IDB_VERSION = 3; // ★ 3 にバージョンアップ（お気に入り専用ストア追加のため）
       const IDB_STORE = "handles";
       const IDB_THUMB_STORE = "thumbs"; // ★ サムネキャッシュ用ストア
+      const IDB_FAVORITE_STORE = "favorite"; // ★ お気に入りフォルダのハンドル専用ストア
+      const FAVORITE_HANDLE_KEY = "favoriteDirHandle"; // ★ そのストア内の固定キー
 
       let allItems = [];
       let filteredItems = [];
@@ -1715,6 +1779,9 @@
 
       let loadedFolderNames = new Set();
 
+      // ★ お気に入りフォルダのハンドル（未指定なら null）
+      let favoriteDirHandle = null;
+
       let baseFitRatio = 1.0;
       const ZOOM_FACTOR = 1.25;
       const MAX_ZOOM = 5.0;
@@ -1725,6 +1792,9 @@
         scrollStartY = 0;
 
       const btnOpenFolder = document.getElementById("btn-open-folder");
+      const btnSetFavoriteFolder = document.getElementById(
+        "btn-set-favorite-folder",
+      );
       const savedFoldersEl = document.getElementById("saved-folders");
       const statusBar = document.getElementById("status-bar");
       const searchInput = document.getElementById("search-input");
@@ -1758,12 +1828,19 @@
         if (!window.showDirectoryPicker) {
           browserWarning.classList.remove("hidden");
           btnOpenFolder.disabled = true;
+          btnSetFavoriteFolder.disabled = true;
         }
 
         loadFavoriteTags();
         renderFavoriteTags();
 
         await checkSavedFolders();
+
+        // ★ お気に入り：保存済みハンドルを復元してボタン表示を更新＋クリック登録
+        await loadFavoriteFolderHandle();
+        if (btnSetFavoriteFolder) {
+          btnSetFavoriteFolder.addEventListener("click", setFavoriteFolder);
+        }
 
         const btnSaveTag = document.getElementById("btn-save-tag");
 
@@ -2126,6 +2203,10 @@
             if (!db.objectStoreNames.contains(IDB_THUMB_STORE)) {
               db.createObjectStore(IDB_THUMB_STORE);
             }
+            // ★ お気に入りフォルダ用ストア追加（handles とは分けて管理）
+            if (!db.objectStoreNames.contains(IDB_FAVORITE_STORE)) {
+              db.createObjectStore(IDB_FAVORITE_STORE);
+            }
           };
           req.onsuccess = (e) => resolve(e.target.result);
           req.onerror = (e) => reject(e.target.error);
@@ -2172,6 +2253,75 @@
           });
           db.close();
         } catch (e) {}
+      }
+
+      // ===== ★ お気に入りフォルダ（専用ストアで保存・読み込み）=====
+      async function saveFavoriteHandleToIDB(handle) {
+        try {
+          const db = await openIDB();
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_FAVORITE_STORE, "readwrite");
+            const req = tx
+              .objectStore(IDB_FAVORITE_STORE)
+              .put(handle, FAVORITE_HANDLE_KEY);
+            req.onsuccess = resolve;
+            req.onerror = (e) => reject(e.target.error);
+          });
+          db.close();
+        } catch (e) {}
+      }
+
+      async function loadFavoriteHandleFromIDB() {
+        try {
+          const db = await openIDB();
+          const handle = await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_FAVORITE_STORE, "readonly");
+            const req = tx.objectStore(IDB_FAVORITE_STORE).get(FAVORITE_HANDLE_KEY);
+            req.onsuccess = (e) => resolve(e.target.result || null);
+            req.onerror = (e) => reject(e.target.error);
+          });
+          db.close();
+          return handle;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // ヘッダーのボタン表示を、指定済みならフォルダ名に切り替える
+      function updateFavoriteButtonLabel() {
+        if (!btnSetFavoriteFolder) return;
+        if (favoriteDirHandle) {
+          btnSetFavoriteFolder.textContent = `⭐ お気に入り: ${favoriteDirHandle.name}`;
+          btnSetFavoriteFolder.classList.add("set");
+        } else {
+          btnSetFavoriteFolder.textContent = "⭐ お気に入りフォルダを指定";
+          btnSetFavoriteFolder.classList.remove("set");
+        }
+      }
+
+      // 「⭐ お気に入りフォルダを指定」ボタン：フォルダを選んで記憶する
+      async function setFavoriteFolder() {
+        try {
+          const dirHandle = await window.showDirectoryPicker({
+            mode: "readwrite",
+            startIn: "downloads",
+          });
+          favoriteDirHandle = dirHandle;
+          await saveFavoriteHandleToIDB(dirHandle);
+          updateFavoriteButtonLabel();
+          showToast(`⭐ お気に入りフォルダを「${dirHandle.name}」に設定したよ`);
+        } catch (e) {
+          // キャンセル時は何もしない
+        }
+      }
+
+      // 起動時に、保存済みのお気に入りハンドルを復元してボタンに反映
+      async function loadFavoriteFolderHandle() {
+        const handle = await loadFavoriteHandleFromIDB();
+        if (handle) {
+          favoriteDirHandle = handle;
+        }
+        updateFavoriteButtonLabel();
       }
 
       // ★ サムネキャッシュ操作
@@ -2704,6 +2854,7 @@
             <button class="btn-compare-pick btn-pick-2" title="2に選択">2</button>
           </div>
           <button class="card-delete-btn" title="このファイルを削除">🗑</button>
+          <button class="card-fav-btn" title="お気に入りフォルダにコピー">★</button>
           <img src="${item.thumbUrl}" alt="${escapeHtml(item.filename)}" loading="lazy" decoding="async">
         </div>
         <div class="card-info">
@@ -2733,6 +2884,13 @@
         btnDelete.addEventListener("click", (e) => {
           e.stopPropagation(); // カードクリック（モーダル）を発火させない
           deleteItem(item);
+        });
+
+        // ★ お気に入りコピーボタン
+        const btnFav = card.querySelector(".card-fav-btn");
+        btnFav.addEventListener("click", (e) => {
+          e.stopPropagation(); // カードクリック（モーダル）を発火させない
+          copyToFavorite(item);
         });
 
         card.addEventListener("click", (e) => {
@@ -2833,6 +2991,86 @@
           showToast(`🗑️ ${item.filename} を削除しました`);
         } catch (err) {
           showToast(`⚠️ 削除に失敗しました: ${err.message}`);
+        }
+      }
+
+      // ★ お気に入りフォルダへ、画像＋プロンプトをコピーする
+      async function copyToFavorite(item) {
+        // ① お気に入りフォルダが未指定なら先に促す
+        if (!favoriteDirHandle) {
+          showToast("⭐ 先にお気に入りフォルダを指定してね");
+          return;
+        }
+
+        // ② コピー元のハンドルが無い（古い読み込み等）場合はコピー不可
+        if (!item.dirHandle) {
+          showToast("⚠️ フォルダを開き直すとコピーできます");
+          return;
+        }
+
+        try {
+          // ③ お気に入りフォルダの書き込み権限を確認（無ければ要求）
+          let perm = await favoriteDirHandle.queryPermission({
+            mode: "readwrite",
+          });
+          if (perm !== "granted") {
+            perm = await favoriteDirHandle.requestPermission({
+              mode: "readwrite",
+            });
+          }
+          if (perm !== "granted") {
+            showToast("⚠️ お気に入りフォルダの書き込み権限がありません");
+            return;
+          }
+
+          // ④ 同名ファイルが既にあればスキップ（重複チェックはファイル名で判定）
+          let duplicated = false;
+          for await (const [name] of favoriteDirHandle.entries()) {
+            if (name === item.filename) {
+              duplicated = true;
+              break;
+            }
+          }
+          if (duplicated) {
+            showToast(
+              `⭐ ${item.filename} は既にお気に入りにあります（スキップ）`,
+            );
+            return;
+          }
+
+          // ⑤ 画像ファイルをコピー
+          const srcImgHandle = await item.dirHandle.getFileHandle(item.filename);
+          const imgFile = await srcImgHandle.getFile();
+          const destImgHandle = await favoriteDirHandle.getFileHandle(
+            item.filename,
+            { create: true },
+          );
+          const imgWritable = await destImgHandle.createWritable();
+          await imgWritable.write(imgFile);
+          await imgWritable.close();
+
+          // ⑥ プロンプトファイルがあれば一緒にコピー
+          if (item.promptFilename) {
+            try {
+              const srcPromptHandle = await item.dirHandle.getFileHandle(
+                item.promptFilename,
+              );
+              const promptFile = await srcPromptHandle.getFile();
+              const destPromptHandle = await favoriteDirHandle.getFileHandle(
+                item.promptFilename,
+                { create: true },
+              );
+              const promptWritable = await destPromptHandle.createWritable();
+              await promptWritable.write(promptFile);
+              await promptWritable.close();
+            } catch (e) {
+              // プロンプトのコピー失敗は致命的ではないので無視
+            }
+          }
+
+          showToast(`⭐ ${item.filename} をお気に入りにコピーしたよ`);
+        } catch (err) {
+          showToast(`⚠️ コピーに失敗しました: ${err.message}`);
         }
       }
 
@@ -3363,5 +3601,6 @@
 
       init();
     </script>
-  </body>
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4bc70e2c01a94c73b74392e4234840661791215815920" integrity="sha512-L0ha0OXavK/8okipN9F8BtP84dg9DUhPERbBXzwI6dgTA55d2+yweo3pn5CSFYs45/r8md2+xvUPtTdvTNRfjA==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
+</body>
 </html>
