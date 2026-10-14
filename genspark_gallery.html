@@ -93,6 +93,45 @@
         gap: 16px;
         flex-wrap: wrap;
       }
+
+      /* 2段目：フォルダ操作帯 */
+      .header-row-2 {
+        max-width: 1600px;
+        margin: 12px auto 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+      .folder-row-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      /* 表示クリアボタンは右端に寄せる */
+      #btn-clear-display {
+        margin-left: auto;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: var(--text-primary);
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: all var(--transition);
+      }
+      #btn-clear-display:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+        color: #fca5a5;
+      }
       .logo {
         display: flex;
         align-items: center;
@@ -1592,10 +1631,18 @@
           <div class="logo-icon">🎨</div>
           <span class="logo-text">AI Gallery & Universal Viewer</span>
         </div>
-        <button id="btn-open-folder">📂 フォルダを追加</button>
+        <button id="btn-open-folder">📂 フォルダを開く</button>
         <button id="btn-set-favorite-folder">⭐ お気に入りフォルダを指定</button>
-        <div id="saved-folders"></div>
         <span id="status-bar"></span>
+      </div>
+
+      <!-- 2段目：フォルダ操作帯 -->
+      <div class="header-row-2">
+        <span class="folder-row-label">フォルダ</span>
+        <div id="saved-folders"></div>
+        <button id="btn-clear-display" title="表示中のサムネをすべて消す（保存は残ります）">
+          🗑 表示クリア
+        </button>
       </div>
     </header>
 
@@ -1840,6 +1887,12 @@
         await loadFavoriteFolderHandle();
         if (btnSetFavoriteFolder) {
           btnSetFavoriteFolder.addEventListener("click", setFavoriteFolder);
+        }
+
+        // 表示クリア（allItems を空にするだけ。IndexedDBの保存は残す）
+        const btnClearDisplay = document.getElementById("btn-clear-display");
+        if (btnClearDisplay) {
+          btnClearDisplay.addEventListener("click", clearDisplay);
         }
 
         const btnSaveTag = document.getElementById("btn-save-tag");
@@ -2431,7 +2484,7 @@
 
           btn.addEventListener("click", async (e) => {
             if (e.target === delSpan) return;
-            await reloadFolder(handle);
+            await openFolderExclusive(handle); // ← 排他読み込みに変更
           });
 
           savedFoldersEl.appendChild(btn);
@@ -2452,17 +2505,50 @@
         });
       }
 
-      async function reloadFolder(handle) {
+      // 指定フォルダ「だけ」を表示する（他の表示はクリア）＝排他読み込み
+      async function openFolderExclusive(handle) {
         try {
-          // ↓ mode を "readwrite" に変更（2箇所）
           let permission = await handle.queryPermission({ mode: "readwrite" });
           if (permission !== "granted")
             permission = await handle.requestPermission({ mode: "readwrite" });
           if (permission !== "granted") return;
-          await loadFilesFromDirectories([handle], { append: true });
+
+          // append: false で読み込むと、既存の allItems は破棄されて
+          // このフォルダだけが表示される（＝排他）。同じフォルダを再クリックで再読み込み。
+          await loadFilesFromDirectories([handle], { append: false });
           await saveHandleToIDB(handle);
           await checkSavedFolders();
         } catch (err) {}
+      }
+
+      // 表示中のサムネを全部消す（フォルダの保存記憶＝IndexedDBは消さない）
+      function clearDisplay() {
+        if (allItems.length === 0) {
+          showToast("表示中の画像はありません");
+          return;
+        }
+
+        // Blob URL を解放（メモリリーク防止）
+        allItems.forEach((item) => {
+          URL.revokeObjectURL(item.imgUrl);
+          if (item.thumbUrl && item.thumbUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(item.thumbUrl);
+          }
+        });
+
+        allItems = [];
+        loadedFolderNames.clear();
+
+        // 比較の選択もリセット
+        comparePick1 = null;
+        comparePick2 = null;
+        updateCompareButton();
+
+        updateStatusBar();
+        applySortAndFilter(); // 一覧を再描画（空になる）
+        checkSavedFolders(); // フォルダボタンの loaded ハイライトを更新
+
+        showToast("🗑️ 表示をクリアしました");
       }
 
       async function openFolder() {
@@ -2472,7 +2558,9 @@
             startIn: "downloads",
           });
           await saveHandleToIDB(dirHandle);
-          await loadFilesFromDirectories([dirHandle], { append: true });
+          // 「フォルダを開く」も排他読み込みに統一（保存済みフォルダのボタンと同じ挙動）。
+          // append: false で、今の一覧は破棄され、選んだフォルダだけが表示される。
+          await loadFilesFromDirectories([dirHandle], { append: false });
           await checkSavedFolders();
         } catch (err) {}
       }
@@ -2492,6 +2580,13 @@
             });
             allItems = [];
             loadedFolderNames.clear();
+
+            // 表示を総入れ替えするので、前のフォルダで選んだ比較の①②もリセットする。
+            // ここで消さないと、カードは消えたのに選択だけ残り、
+            // 比較バーが「1・2 選択中」のままになって混乱する（clearDisplay と同じ扱い）。
+            comparePick1 = null;
+            comparePick2 = null;
+            updateCompareButton();
           } else {
             for (const h of dirHandles) {
               if (loadedFolderNames.has(h.name)) {
@@ -2847,6 +2942,9 @@
         if (comparePick2 && comparePick2.key === item.key)
           card.classList.add("selected-2");
 
+        // 行揃えのときは lazy を外す（実寸を即取れるようにして行計算の取りこぼしを防ぐ）
+        const lazyAttr = currentLayout === "justified" ? "" : 'loading="lazy"';
+
         card.innerHTML = `
         <div class="card-thumb">
           <div class="card-compare-btns">
@@ -2855,7 +2953,7 @@
           </div>
           <button class="card-delete-btn" title="このファイルを削除">🗑</button>
           <button class="card-fav-btn" title="お気に入りフォルダにコピー">★</button>
-          <img src="${item.thumbUrl}" alt="${escapeHtml(item.filename)}" loading="lazy" decoding="async">
+          <img src="${item.thumbUrl}" alt="${escapeHtml(item.filename)}" ${lazyAttr} decoding="async">
         </div>
         <div class="card-info">
           <div class="card-date">${escapeHtml(item.dateStr)}</div>
