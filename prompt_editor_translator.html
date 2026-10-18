@@ -235,13 +235,58 @@
         return parts;
       }
 
-      async function translate(text) {
+      // ===== 翻訳エンジンの設定 =====================================
+      // 既定は Sarashina(nano)。ブラウザから直に叩けない（CORS＋国内IP限定）ので、
+      // 東京リージョンで動く Vercel の中継を経由する。
+      //   ?engine=google を付けて開くと、今までの非公式Google翻訳で動く（速度比較用）
+      const RELAY_URL = "https://toolbox-nu-weld.vercel.app/api/translate";
+      const ENGINE = new URLSearchParams(location.search).get("engine") || "nano";
+
+      // 直前の1文にかかった時間(ms)。run() / retranslateAll() が表示に使う。
+      let lastMs = 0;
+      // Sarashina が失敗して非公式Google翻訳に逃げた回数（1回の実行ごとにリセット）
+      let fallbackCount = 0;
+
+      // --- 今までの非公式Google翻訳（フォールバック用。中身は変更なし） ---
+      async function translateByGoogle(text) {
         const url =
           "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=" +
           encodeURIComponent(text);
         const res = await fetch(url);
         const data = await res.json();
         return data[0].map((seg) => seg[0]).join("");
+      }
+
+      // --- 中継（Sarashina nano）経由の和訳 ---
+      async function translateBySarashina(text) {
+        const res = await fetch(RELAY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text }), // 中継側が Sarashina に投げて {"ok":true,"text":"和訳"} を返す
+        });
+        if (!res.ok) throw new Error("relay " + res.status); // 429 / 502 / 403 など
+        const data = await res.json();
+        if (!data || !data.ok || !data.text) throw new Error("empty");
+        return String(data.text).trim();
+      }
+
+      // --- 呼び出し側から見た入口は、今までどおり translate(text) のまま ---
+      //     Sarashina が転んだら非公式Google翻訳に逃がして、ツールは止めない。
+      async function translate(text) {
+        const t0 = performance.now();
+        let out;
+        try {
+          out =
+            ENGINE === "google"
+              ? await translateByGoogle(text)
+              : await translateBySarashina(text);
+        } catch (e) {
+          if (ENGINE === "google") throw e; // 逃げ先が無いのでそのまま失敗させる
+          fallbackCount++;
+          out = await translateByGoogle(text);
+        }
+        lastMs = performance.now() - t0; // 1文あたりの所要時間
+        return out;
       }
 
       function copyText(btn, text) {
@@ -391,22 +436,39 @@
         }
 
         // 「分割して和訳」モードは順番に翻訳
+        fallbackCount = 0; // この実行ぶんのカウントをリセット
+        const t0 = performance.now();
+        let usedMs = 0; // 翻訳そのものに使った時間の合計
         for (let i = 0; i < cards.length; i++) {
-          status.textContent = `翻訳中 ${i + 1}/${cards.length}...`;
+          status.textContent =
+            `翻訳中 ${i + 1}/${cards.length}...` +
+            (i ? `（前の文 ${Math.round(lastMs)}ms）` : "");
           cards[i].ja.textContent = "翻訳中...";
           try {
             cards[i].ja.textContent = await translate(sentences[i]);
           } catch (e) {
             cards[i].ja.textContent = "[翻訳失敗]";
           }
+          usedMs += lastMs;
           await new Promise((r) => setTimeout(r, 50));
         }
-        status.textContent = "完了";
+        // 実測を出す: 全体の所要時間と、1文あたりの翻訳時間
+        const total = performance.now() - t0;
+        status.textContent =
+          `完了（${cards.length}文・所要 ${(total / 1000).toFixed(1)}秒・平均 ${Math.round(
+            usedMs / cards.length
+          )}ms/文）` +
+          (fallbackCount ? `・Google代替 ${fallbackCount}件` : "") +
+          ` [${ENGINE}]`;
       }
 
       async function retranslateAll() {
         const rows = [...document.querySelectorAll("#segments .row")];
         const status = document.getElementById("status");
+        fallbackCount = 0; // この実行ぶんのカウントをリセット
+        const t0 = performance.now();
+        let usedMs = 0;
+        let done = 0; // 実際に翻訳した文の数（空行は数えない）
         for (let i = 0; i < rows.length; i++) {
           const en = rows[i].querySelector(".en").value.trim();
           const ja = rows[i].querySelector(".ja");
@@ -414,16 +476,26 @@
             ja.textContent = "";
             continue;
           }
-          status.textContent = `再翻訳中 ${i + 1}/${rows.length}...`;
+          status.textContent =
+            `再翻訳中 ${i + 1}/${rows.length}...` +
+            (done ? `（前の文 ${Math.round(lastMs)}ms）` : "");
           ja.textContent = "翻訳中...";
           try {
             ja.textContent = await translate(en);
           } catch (e) {
             ja.textContent = "[翻訳失敗]";
           }
+          usedMs += lastMs;
+          done++;
           await new Promise((r) => setTimeout(r, 50));
         }
-        status.textContent = "完了";
+        const total = performance.now() - t0;
+        status.textContent =
+          `完了（${done}文・所要 ${(total / 1000).toFixed(1)}秒・平均 ${
+            done ? Math.round(usedMs / done) : 0
+          }ms/文）` +
+          (fallbackCount ? `・Google代替 ${fallbackCount}件` : "") +
+          ` [${ENGINE}]`;
       }
 
       function flashButton(btn, msg = "✓ コピーしました") {
@@ -462,6 +534,13 @@
       document.getElementById("input").addEventListener("paste", () => {
         setTimeout(run, 0);
       });
+
+      // 起動時に使用中のエンジンを表示（?engine=google で切り替わる）
+      document.getElementById("status").textContent =
+        ENGINE === "google"
+          ? "翻訳エンジン：非公式Google翻訳（比較用）"
+          : "翻訳エンジン：Sarashina nano";
     </script>
-  </body>
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
+</body>
 </html>
