@@ -236,16 +236,63 @@
       }
 
       // ===== 翻訳エンジンの設定 =====================================
-      // 既定は Sarashina(nano)。ブラウザから直に叩けない（CORS＋国内IP限定）ので、
-      // 東京リージョンで動く Vercel の中継を経由する。
-      //   ?engine=google を付けて開くと、今までの非公式Google翻訳で動く（速度比較用）
+      // 2026-11-08: Sarashina の RPM が全体的に上がったので、分割和訳の既定エンジンを
+      //   sarashina3.2-translate（専用の翻訳モデル）に差し替えた。
+      // ブラウザから直に叩けない（CORS＋国内IP限定）ので、東京リージョンの
+      // Vercel 中継（api/translate.js）を経由する。
+      //   ?engine=translate … 既定。Sarashina3.2 translate（30 RPM・翻訳専用）
+      //   ?engine=nano      … 従来の chat 版 nano（60 RPM・直訳寄り）
+      //   ?engine=mini      … mini（30 RPM・指示追従は強い）
+      //   ?engine=google    … 今までの非公式Google翻訳（比較用／最終フォールバック）
+      //   &style=plain|polite|auto … 訳文の文体。translate のときだけ効く（β版）
+      //                               省略時は plain（常体）。auto にするとモデル任せ。
       const RELAY_URL = "https://toolbox-nu-weld.vercel.app/api/translate";
-      const ENGINE = new URLSearchParams(location.search).get("engine") || "nano";
+      const params = new URLSearchParams(location.search);
+      const ENGINE = (params.get("engine") || "translate").toLowerCase();
+      const STYLE = params.get("style") || "plain";
+
+      // エンジンごとの上限本数（60秒の累計）。レート制限は「1秒あたり」ではなく
+      // 「60秒間の累計」で判定され、バーストも許されない。だから
+      // 「2秒に1本」のような固定間隔ではなく、直近60秒に何本投げたかを数えて
+      // 枠が空くまで待つ方式にする（下の waitForSlot）。
+      const RPM = { translate: 30, nano: 60, mini: 30, google: Infinity };
 
       // 直前の1文にかかった時間(ms)。run() / retranslateAll() が表示に使う。
       let lastMs = 0;
       // Sarashina が失敗して非公式Google翻訳に逃げた回数（1回の実行ごとにリセット）
       let fallbackCount = 0;
+
+      // 画面表示用のエンジン名。translate のときだけ文体も添える。
+      function engineLabel() {
+        return ENGINE === "translate" ? `translate/${STYLE}` : ENGINE;
+      }
+
+      // 直近60秒に投げたリクエストの時刻（ミリ秒）。waitForSlot が読み書きする。
+      const requestLog = [];
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      // 枠が空くまで待ってから、1本ぶんの枠を予約する。
+      // 速く返ってくるぶんは速く進み、連打したときだけ待つ動きになる。
+      // onWait(待ちミリ秒) は「待ってます」表示用のコールバック（省略可）。
+      async function waitForSlot(onWait) {
+        const limit = RPM[ENGINE] ?? 30;
+        if (!isFinite(limit)) return; // google は制限なし
+        for (;;) {
+          const now = Date.now();
+          // 60秒より古い記録は捨てる（＝カウント期間が切り替わったぶん）
+          while (requestLog.length && now - requestLog[0] >= 60000) {
+            requestLog.shift();
+          }
+          if (requestLog.length < limit) {
+            requestLog.push(now); // この1本を枠に数える
+            return;
+          }
+          // 一番古い1本が枠から外れるまで待つ（+100msは余裕）
+          const wait = 60000 - (now - requestLog[0]) + 100;
+          if (onWait) onWait(wait);
+          await sleep(wait);
+        }
+      }
 
       // --- 今までの非公式Google翻訳（フォールバック用。中身は変更なし） ---
       async function translateByGoogle(text) {
@@ -257,35 +304,79 @@
         return data[0].map((seg) => seg[0]).join("");
       }
 
-      // --- 中継（Sarashina nano）経由の和訳 ---
+      // --- 中継（Sarashina）経由の和訳 ---
+      // 中継側が engine を見て振り分ける：
+      //   translate → /v1/translate（本文＋言語＋文体だけ。指示文は渡せない）
+      //   nano/mini → /v1/chat/completions（従来どおり指示文つき）
       async function translateBySarashina(text) {
         const res = await fetch(RELAY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: text }), // 中継側が Sarashina に投げて {"ok":true,"text":"和訳"} を返す
+          // 中継は {"ok":true,"text":"和訳"} を返す（形は今までと同じ）
+          body: JSON.stringify({ text: text, engine: ENGINE, style: STYLE }),
         });
-        if (!res.ok) throw new Error("relay " + res.status); // 429 / 502 / 403 など
-        const data = await res.json();
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (e) {
+          data = null;
+        }
+        if (!res.ok) {
+          if (res.status === 429) {
+            // 枠オーバー。待てば必ず通るので、待ち秒数を添えて呼び出し側に返す。
+            // Retry-After は中継が Expose-Headers でブラウザに露出させている。
+            const err = new Error("rate limited");
+            const ra = Number(res.headers.get("Retry-After"));
+            err.retryAfter = Number.isFinite(ra) && ra > 0 ? ra : 60;
+            throw err;
+          }
+          throw new Error("relay " + res.status); // 502 / 403 / 413 など
+        }
         if (!data || !data.ok || !data.text) throw new Error("empty");
         return String(data.text).trim();
       }
 
       // --- 呼び出し側から見た入口は、今までどおり translate(text) のまま ---
-      //     Sarashina が転んだら非公式Google翻訳に逃がして、ツールは止めない。
+      //     「枠待ち → 失敗なら1回だけ再試行 → それでもダメならGoogle」。
+      //     429 は失敗に数えず、待って同じ文を送り直す（ここが今回の主な変更点）。
       async function translate(text) {
         const t0 = performance.now();
         let out;
-        try {
-          out =
-            ENGINE === "google"
-              ? await translateByGoogle(text)
-              : await translateBySarashina(text);
-        } catch (e) {
-          if (ENGINE === "google") throw e; // 逃げ先が無いのでそのまま失敗させる
-          fallbackCount++;
-          out = await translateByGoogle(text);
+
+        if (ENGINE === "google") {
+          out = await translateByGoogle(text); // 比較用。逃げ先なし
+          lastMs = performance.now() - t0;
+          return out;
         }
-        lastMs = performance.now() - t0; // 1文あたりの所要時間
+
+        let attempt = 0;
+        for (;;) {
+          await waitForSlot((wait) => {
+            document.getElementById("status").textContent =
+              `枠待ち：${Math.ceil(wait / 1000)}秒待ってから続けます（上限 ${RPM[ENGINE]}本/分）`;
+          });
+          try {
+            out = await translateBySarashina(text);
+            break;
+          } catch (e) {
+            if (e.retryAfter) {
+              // 429。中継のカウント期間が切り替わるまで待つ
+              await sleep(e.retryAfter * 1000 + 300);
+              requestLog.length = 0; // 期間が切り替わったので数え直す
+              continue;
+            }
+            if (attempt++ < 1) {
+              // 一時的な失敗（502など）は一度だけそのまま再試行
+              await sleep(400);
+              continue;
+            }
+            // 2回続けて失敗 → 最後の逃げ道として非公式Google翻訳へ
+            fallbackCount++;
+            out = await translateByGoogle(text);
+            break;
+          }
+        }
+        lastMs = performance.now() - t0; // 1文あたりの所要時間（待ち時間込み）
         return out;
       }
 
@@ -450,7 +541,6 @@
             cards[i].ja.textContent = "[翻訳失敗]";
           }
           usedMs += lastMs;
-          await new Promise((r) => setTimeout(r, 50));
         }
         // 実測を出す: 全体の所要時間と、1文あたりの翻訳時間
         const total = performance.now() - t0;
@@ -459,7 +549,7 @@
             usedMs / cards.length
           )}ms/文）` +
           (fallbackCount ? `・Google代替 ${fallbackCount}件` : "") +
-          ` [${ENGINE}]`;
+          ` [${engineLabel()}]`;
       }
 
       async function retranslateAll() {
@@ -487,7 +577,6 @@
           }
           usedMs += lastMs;
           done++;
-          await new Promise((r) => setTimeout(r, 50));
         }
         const total = performance.now() - t0;
         status.textContent =
@@ -495,7 +584,7 @@
             done ? Math.round(usedMs / done) : 0
           }ms/文）` +
           (fallbackCount ? `・Google代替 ${fallbackCount}件` : "") +
-          ` [${ENGINE}]`;
+          ` [${engineLabel()}]`;
       }
 
       function flashButton(btn, msg = "✓ コピーしました") {
@@ -535,12 +624,17 @@
         setTimeout(run, 0);
       });
 
-      // 起動時に使用中のエンジンを表示（?engine=google で切り替わる）
+      // 起動時に使用中のエンジンを表示（?engine=… で切り替わる）
       document.getElementById("status").textContent =
         ENGINE === "google"
           ? "翻訳エンジン：非公式Google翻訳（比較用）"
-          : "翻訳エンジン：Sarashina nano";
+          : ENGINE === "translate"
+            ? `翻訳エンジン：Sarashina3.2 translate（文体: ${STYLE}・上限 ${
+                RPM.translate
+              }本/分）`
+            : `翻訳エンジン：Sarashina ${ENGINE}（上限 ${RPM[ENGINE]}本/分）`;
     </script>
   <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
